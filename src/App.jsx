@@ -5,7 +5,7 @@ import {
   AlertTriangle, Trash2, Eye, Lock, Unlock, Trophy, Flame, ArrowRight,
   ArrowLeft, Download, Play, Zap, MessageCircle, Sliders, CheckCircle2,
   UserPlus, Hash, Globe, Edit3, X, Timer, Award, BarChart3, Compass,
-  Camera, Image as ImageIcon, ShieldCheck, ShieldAlert, Star
+  Camera, Image as ImageIcon, ShieldCheck, ShieldAlert, Star, Music
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import {
@@ -51,6 +51,8 @@ class SoundEngine {
   constructor() {
     this.ctx = null;
     this.muted = false;
+    this.musicTimer = null;
+    this.musicStep = 0;
   }
 
   init() {
@@ -88,6 +90,26 @@ class SoundEngine {
     } catch (e) {
       // Ignore audio errors on restricted devices
     }
+  }
+
+  startMusic() {
+    if (this.musicTimer || typeof window === 'undefined') return;
+    this.init();
+    const melody = [261.63, 329.63, 392, 329.63, 293.66, 349.23, 440, 349.23];
+    const playBar = () => {
+      if (this.muted) return;
+      const note = melody[this.musicStep % melody.length];
+      this.playTone(note, 'sine', 0.32, 0, 0.018);
+      this.playTone(note * 2, 'sine', 0.18, 0.045, 0.006);
+      this.musicStep += 1;
+    };
+    playBar();
+    this.musicTimer = window.setInterval(playBar, 420);
+  }
+
+  stopMusic() {
+    if (this.musicTimer && typeof window !== 'undefined') window.clearInterval(this.musicTimer);
+    this.musicTimer = null;
   }
 
   click() {
@@ -1367,6 +1389,7 @@ const FriendshipSpeedometer = ({ scorePct, isSafe, lang }) => {
 export default function App() {
   const [lang, setLang] = useState('en'); // 'en' | 'desi'
   const [muted, setMuted] = useState(false);
+  const [musicOn, setMusicOn] = useState(false);
 
   // Firebase User & Quizzes State
   const [user, setUser] = useState(null);
@@ -1467,6 +1490,8 @@ export default function App() {
   const [stampSlammed, setStampSlammed] = useState(false);
 
   const receiptCanvasRef = useRef(null);
+
+  useEffect(() => () => sfx.stopMusic(), []);
 
   // --------------------------------------------------------------------------
   // Scoreboard & Admin Moderation State
@@ -2357,6 +2382,25 @@ export default function App() {
             >
               <Hash className="w-4 h-4 text-[#FF3366]" />
               <span>#{activeQuiz.id}</span>
+            </button>
+
+            <button
+              type="button"
+              aria-label={musicOn ? 'Turn background music off' : 'Turn background music on'}
+              aria-pressed={musicOn}
+              onClick={() => {
+                sfx.click();
+                setMusicOn((current) => {
+                  const next = !current;
+                  if (next) sfx.startMusic();
+                  else sfx.stopMusic();
+                  return next;
+                });
+              }}
+              className={`p-2 rounded-xl border-[2.5px] border-[#111] shadow-[3px_3px_0px_#111] ${musicOn ? 'bg-[#B8FF01]' : 'bg-white'}`}
+              title={musicOn ? 'Background music on' : 'Background music off'}
+            >
+              <Music className="w-4 h-4" />
             </button>
 
             <button
