@@ -919,76 +919,7 @@ const INITIAL_DEMO_QUIZ = {
     correctOptionId: ['a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'b', 'a'][idx],
     isDealbreaker: idx === 0 || idx === 2
   })),
-  attempts: [
-    {
-      id: 'att_1',
-      friendName: 'Praveen (Benchmate) 🔥',
-      avatarId: 'av3',
-      relationshipId: 'squad',
-      score: 9,
-      total: 10,
-      avgTimeSec: 3.4,
-      maxStreak: 7,
-      xpEarned: 1150,
-      missedDealbreaker: false,
-      answers: {
-        q1: 'a', q2: 'a', q3: 'a', q4: 'a', q5: 'a',
-        q6: 'a', q7: 'a', q8: 'b', q9: 'b', q10: 'a'
-      },
-      timestamp: Date.now() - 1000 * 60 * 42
-    },
-    {
-      id: 'att_2',
-      friendName: 'Surya_MSD 🦁',
-      avatarId: 'av7',
-      relationshipId: 'bestie',
-      score: 8,
-      total: 10,
-      avgTimeSec: 4.1,
-      maxStreak: 5,
-      xpEarned: 980,
-      missedDealbreaker: false,
-      answers: {
-        q1: 'a', q2: 'b', q3: 'a', q4: 'a', q5: 'a',
-        q6: 'a', q7: 'a', q8: 'a', q9: 'a', q10: 'a'
-      },
-      timestamp: Date.now() - 1000 * 60 * 28
-    },
-    {
-      id: 'att_3',
-      friendName: 'Gautham (Fake Snake 🐍)',
-      avatarId: 'av5',
-      relationshipId: 'vibes',
-      score: 4,
-      total: 10,
-      avgTimeSec: 6.8,
-      maxStreak: 2,
-      xpEarned: 420,
-      missedDealbreaker: true,
-      answers: {
-        q1: 'c', q2: 'd', q3: 'd', q4: 'b', q5: 'a',
-        q6: 'c', q7: 'a', q8: 'b', q9: 'b', q10: 'a'
-      },
-      timestamp: Date.now() - 1000 * 60 * 15
-    },
-    {
-      id: 'att_4',
-      friendName: 'Keerthana ✨',
-      avatarId: 'av6',
-      relationshipId: 'crush',
-      score: 7,
-      total: 10,
-      avgTimeSec: 4.9,
-      maxStreak: 4,
-      xpEarned: 840,
-      missedDealbreaker: false,
-      answers: {
-        q1: 'a', q2: 'a', q3: 'a', q4: 'c', q5: 'b',
-        q6: 'a', q7: 'b', q8: 'a', q9: 'b', q10: 'a'
-      },
-      timestamp: Date.now() - 1000 * 60 * 6
-    }
-  ]
+  attempts: []
 };
 
 // ============================================================================
@@ -1449,6 +1380,7 @@ export default function App() {
   });
   const [activeQuizId, setActiveQuizId] = useState(INITIAL_DEMO_QUIZ.id);
   const [localStoreReady, setLocalStoreReady] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
 
   // View Mode: 'create' | 'share' | 'play' | 'scoreboard'
   const [mode, setMode] = useState('create');
@@ -1627,6 +1559,58 @@ export default function App() {
       console.warn('Local quiz save skipped (storage may be full):', err);
     }
   }, [quizzesMap, localStoreReady]);
+
+  // Restore unfinished drafts and gameplay after an accidental page refresh.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem('dont-block-me:session:v1');
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && typeof saved === 'object') {
+          if (saved.lang === 'en' || saved.lang === 'desi') setLang(saved.lang);
+          if (typeof saved.muted === 'boolean') { setMuted(saved.muted); sfx.muted = saved.muted; }
+          if (typeof saved.cName === 'string') setCName(saved.cName);
+          if (['m', 'f', 't'].includes(saved.cPronoun)) setCPronoun(saved.cPronoun);
+          if (typeof saved.cAvatar === 'string') setCAvatar(saved.cAvatar);
+          if (typeof saved.cCustomAvatarUrl === 'string') setCCustomAvatarUrl(saved.cCustomAvatarUrl);
+          if (typeof saved.cTheme === 'string') setCTheme(saved.cTheme);
+          if (Number.isFinite(saved.cPassScore)) setCPassScore(saved.cPassScore);
+          if (Array.isArray(saved.cQuestions) && saved.cQuestions.length) setCQuestions(saved.cQuestions);
+          if (Number.isInteger(saved.currentQIndex)) setCurrentQIndex(Math.max(0, Math.min(saved.currentQIndex, (saved.cQuestions?.length || 10) - 1)));
+          if (saved.creatorStep === 1 || saved.creatorStep === 2) setCreatorStep(saved.creatorStep);
+          if (typeof saved.activeQuizId === 'string') setActiveQuizId(saved.activeQuizId);
+          if (['create', 'share', 'play', 'scoreboard'].includes(saved.mode)) setMode(saved.mode);
+          if (typeof saved.friendName === 'string') setFriendName(saved.friendName);
+          if (typeof saved.friendAvatar === 'string') setFriendAvatar(saved.friendAvatar);
+          if (typeof saved.relationshipId === 'string') setRelationshipId(saved.relationshipId);
+          if (Number.isInteger(saved.pQuestionIdx)) setPQuestionIdx(Math.max(0, saved.pQuestionIdx));
+          if (saved.pAnswers && typeof saved.pAnswers === 'object') setPAnswers(saved.pAnswers);
+          if (['entry', 'quiz', 'result'].includes(saved.playerStep)) setPlayerStep(saved.playerStep);
+          if (saved.latestAttempt && typeof saved.latestAttempt === 'object') setLatestAttempt(saved.latestAttempt);
+          if (Number.isFinite(saved.totalTimeSec)) setTotalTimeSec(saved.totalTimeSec);
+          if (Number.isFinite(saved.xpPoints)) setXpPoints(saved.xpPoints);
+          if (Number.isFinite(saved.comboStreak)) setComboStreak(saved.comboStreak);
+          if (Number.isFinite(saved.maxComboStreak)) setMaxComboStreak(saved.maxComboStreak);
+        }
+      }
+    } catch (err) { console.warn('Session restore skipped:', err); }
+    finally { setSessionReady(true); }
+  }, []);
+
+  useEffect(() => {
+    if (!sessionReady) return;
+    try {
+      window.localStorage.setItem('dont-block-me:session:v1', JSON.stringify({
+        lang, muted, cName, cPronoun, cAvatar, cCustomAvatarUrl, cTheme, cPassScore,
+        cQuestions, currentQIndex, creatorStep, activeQuizId, mode, friendName, friendAvatar,
+        relationshipId, pQuestionIdx, pAnswers, playerStep, latestAttempt, totalTimeSec,
+        xpPoints, comboStreak, maxComboStreak
+      }));
+    } catch (err) { console.warn('Session save skipped:', err); }
+  }, [sessionReady, lang, muted, cName, cPronoun, cAvatar, cCustomAvatarUrl, cTheme,
+      cPassScore, cQuestions, currentQIndex, creatorStep, activeQuizId, mode, friendName,
+      friendAvatar, relationshipId, pQuestionIdx, pAnswers, playerStep, latestAttempt,
+      totalTimeSec, xpPoints, comboStreak, maxComboStreak]);
 
   // Resolve shared quiz links on the deployed app origin.
   useEffect(() => {
@@ -2005,8 +1989,6 @@ export default function App() {
     }, instantFeedback ? 650 : 240);
   };
 
-  // ============================================================================
-  // ONE-TAP LIVE COLLEGE FRIEND SIMULATOR
   // ============================================================================
   const handleSimulateFriendAttempt = async () => {
     const sampleSquad = [
@@ -2528,13 +2510,7 @@ export default function App() {
             </button>
           </div>
 
-          <button
-            onClick={handleSimulateFriendAttempt}
-            className="px-3.5 py-1.5 rounded-xl bg-[#00E5FF] border-2 border-[#111] shadow-[2px_2px_0px_#111] active:translate-y-0.5 font-black text-xs whitespace-nowrap flex items-center gap-1.5"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            {lang === 'en' ? '+ Simulate Squad Friend' : '+ டमी மச்சான் டெஸ்ட்'}
-          </button>
+
         </div>
       </header>
 
@@ -2547,52 +2523,6 @@ export default function App() {
         {/* ================================================================== */}
         {mode === 'create' && (
           <div>
-            {/* Quick Demo Showcase Banner */}
-            <div className="mb-7 bg-gradient-to-r from-[#B8FF01] via-[#00E5FF] to-[#B8FF01] border-[3px] border-[#111] rounded-3xl p-4 sm:p-5 shadow-[5px_5px_0px_#111] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <img
-                  src={AVATAR_BADGES[0].img}
-                  alt="Demo Host" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
-                  className="w-14 h-14 rounded-2xl object-cover border-[3px] border-[#111] shadow-[3px_3px_0px_#111] shrink-0"
-                />
-                <div>
-                  <div className="inline-block px-2.5 py-0.5 rounded-md bg-[#111] text-[#B8FF01] font-black text-[10px] uppercase mb-1">
-                    INSTANT COLLEGE SQUAD DEMO LOADED • #Y0TJMqL
-                  </div>
-                  <h2 className="font-black text-base sm:text-lg leading-tight">
-                    {lang === 'en'
-                      ? "Test-Play Karthik's College Quiz (Vijay, Shinchan, Biryani, Last Bench, IPL)!"
-                      : 'கார்த்திக்கின் காலேஜ் குவிஸை (விஜய், ஷின்சான், பிரியாணி, IPL) இப்பவே டெஸ்ட் பண்ணுங்க!'}
-                  </h2>
-                </div>
-              </div>
-              <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0">
-                <button
-                  onClick={() => {
-                    sfx.click();
-                    setActiveQuizId('Y0TJMqL');
-                    setPlayerStep('entry');
-                    setMode('play');
-                  }}
-                  className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-[#FF3366] text-white border-[2.5px] border-[#111] shadow-[3px_3px_0px_#111] font-black text-xs sm:text-sm flex items-center justify-center gap-1.5"
-                >
-                  <Play className="w-4 h-4" />
-                  Play 3D Card Quiz
-                </button>
-                <button
-                  onClick={() => {
-                    sfx.click();
-                    setActiveQuizId('Y0TJMqL');
-                    setMode('scoreboard');
-                  }}
-                  className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-white text-[#111] border-[2.5px] border-[#111] shadow-[3px_3px_0px_#111] font-black text-xs sm:text-sm flex items-center justify-center gap-1.5"
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  See Motion Graphs
-                </button>
-              </div>
-            </div>
-
             {creatorStep === 1 ? (
               /* STEP 1: CREATOR PROFILE & REAL PHOTO AVATAR PICKER */
               <div className="bg-white border-[3px] border-[#111] rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_#111]">
@@ -2870,13 +2800,13 @@ export default function App() {
                   return (
                     <div className="p-4 sm:p-6 rounded-3xl bg-[#FFFDF5] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] mb-6">
                       {/* Question Banner Header with Real Photo */}
-                      <div className="relative h-28 sm:h-36 rounded-2xl border-[3px] border-[#111] overflow-hidden mb-4 bg-neutral-900">
+                      <div className="question-banner relative min-h-[300px] sm:min-h-0 h-auto sm:h-36 rounded-2xl border-[3px] border-[#111] overflow-hidden mb-4 bg-neutral-900">
                         <img
                           src={activeQ.bannerImg}
                           alt={activeQ.category} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
                           className="w-full h-full object-cover opacity-65"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-transparent p-4 flex flex-col justify-between">
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/65 to-black/30 p-3 sm:p-4 flex flex-col justify-between gap-4">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="px-3 py-1 rounded-lg bg-[#00E5FF] text-[#111] border-2 border-[#111] font-black text-xs uppercase">
                               Q{currentQIndex + 1} • {activeQ.category}
@@ -2919,7 +2849,7 @@ export default function App() {
                             </div>
                           </div>
 
-                          <h3 className="text-white font-black text-lg sm:text-2xl leading-snug drop-shadow">
+                          <h3 className="text-white font-black text-lg sm:text-2xl leading-snug drop-shadow break-words">
                             {formatQuestionText(
                               lang === 'en' ? activeQ.en : activeQ.desi,
                               cName,
@@ -3024,7 +2954,7 @@ export default function App() {
                 />
                 <div className="min-w-0">
                   <div className="text-[11px] font-black text-[#B8FF01] uppercase">
-                    BLOCK.YOUTEST.ME • COLLEGE EDITION
+                    COLLEGE SQUAD • SHAREABLE QUIZ
                   </div>
                   <h3 className="font-black text-base sm:text-lg leading-tight truncate">
                     ⚠️ {activeQuiz.creatorName} is auditing the College Gang!
@@ -3959,7 +3889,7 @@ export default function App() {
               </button>
             </div>
             <p className="text-xs font-bold text-neutral-600 mb-4">
-              Demo #Y0TJMqL PIN is <span className="underline font-black">4829</span>
+              Enter the creator PIN saved when this quiz was published.
             </p>
             <form
               onSubmit={(e) => {
@@ -3972,7 +3902,7 @@ export default function App() {
                   showToast('Admin Mode Unlocked! 🔓', 'success');
                 } else {
                   sfx.wrong();
-                  showToast('Wrong PIN! Try 4829 for demo.', 'error');
+                  showToast('Incorrect PIN. Try the PIN saved by the quiz creator.', 'error');
                 }
               }}
               className="space-y-3"
@@ -4026,7 +3956,7 @@ export default function App() {
                   showToast(`Loaded ${match.creatorName}'s Squad Quiz!`, 'success');
                 } else {
                   sfx.wrong();
-                  showToast('Code not found! Try #Y0TJMqL', 'error');
+                  showToast('Code not found! check the quiz code and try again', 'error');
                 }
               }}
               className="space-y-3"
