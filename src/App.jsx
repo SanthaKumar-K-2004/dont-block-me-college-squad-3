@@ -2573,6 +2573,8 @@ export default function App() {
   const shareUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/?id=${encodeURIComponent(activeQuiz.id)}&q=${encodeURIComponent(activeQuiz.pronoun || 'm')}`
     : `/?id=${encodeURIComponent(activeQuiz.id)}&q=${encodeURIComponent(activeQuiz.pronoun || 'm')}`;
+  // A share URL is useful to other devices only after this quiz document exists in Firestore.
+  const canShareQuizOnline = cloudSyncStatus === 'live' && cloudQuizIdsRef.current.has(activeQuiz.id);
 
   // ============================================================================
   // RENDER APPLICATION
@@ -2855,7 +2857,7 @@ export default function App() {
 
                     <div>
                       <label className="block font-black text-sm mb-2">
-                        {lang === 'en' ? '2. Select Vibe Pronouns' : '2. பாலினம் / Pronoun'}
+                        {lang === 'en' ? '2. Choose Your Pronouns' : '2. பாலினம் / Pronoun'}
                       </label>
                       <div className="grid grid-cols-3 gap-2.5">
                         {[
@@ -3013,7 +3015,7 @@ export default function App() {
                           <Lock className="w-4 h-4" /> Creator 4-Digit Admin PIN
                         </div>
                         <p className="text-xs font-bold text-neutral-700 mt-1">
-                          Save this PIN to unlock scoreboard moderation from any mobile browser.
+                          Keep this PIN private. It is a convenience check on this device, not account-level security.
                         </p>
                       </div>
                       <div className="px-3.5 py-2 rounded-xl bg-white border-[3px] border-[#111] font-mono font-black text-xl">
@@ -3049,7 +3051,7 @@ export default function App() {
 
                   <div className="flex items-center gap-2">
                     <span className="px-3 py-1 rounded-full bg-[#B8FF01] border-2 border-[#111] font-black text-xs">
-                      {cQuestions.filter((q) => q.correctOptionId).length} / Picked
+                      {cQuestions.filter((q) => q.correctOptionId).length} / Answered
                     </span>
                     <span className="px-3 py-1 rounded-full bg-[#FF3366] text-white border-2 border-[#111] font-black text-xs">
                       ⚠️ {cQuestions.filter((q) => q.isDealbreaker).length}/2 Dealbreakers
@@ -3241,13 +3243,13 @@ export default function App() {
               )}
             </div>
 
-            {cloudSyncStatus !== 'live' ? (
+            {!canShareQuizOnline ? (
               <div role="status" className="mb-6 rounded-2xl border-[3px] border-[#111] bg-amber-50 p-4 shadow-[3px_3px_0px_#111]">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-700" />
                   <div>
-                    <p className="font-black text-sm">{cloudSyncStatus === 'connecting' ? 'Connecting to the shared scoreboard…' : 'Online sharing is not connected'}</p>
-                    <p className="text-sm mt-1">{cloudSyncStatus === 'connecting' ? 'Waiting for Firebase to confirm a live quiz snapshot. If this takes too long, check your connection and Firebase setup.' : 'This quiz is saved on this device only until Firebase sign-in and Firestore access rules are working. Friends on other phones cannot load or submit scores while cloud sync is offline.'}</p>
+                    <p className="font-black text-sm">{cloudSyncStatus === 'connecting' ? 'Connecting to online sharing…' : 'This quiz is not available to other devices yet'}</p>
+                    <p className="text-sm mt-1">{cloudSyncStatus === 'connecting' ? 'Waiting for Firebase to confirm a live connection. If this takes too long, check your connection and Firebase setup.' : 'This quiz is stored on this device until it is successfully published to Firebase. Copying or sharing its link now would not let friends on other devices load it.'}</p>
                   </div>
                 </div>
               </div>
@@ -3286,12 +3288,14 @@ export default function App() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <button
+                disabled={!canShareQuizOnline}
                 onClick={async () => {
+                  if (!canShareQuizOnline) return;
                   sfx.correct(2);
                   await copyTextBulletproof(shareUrl);
-                  showToast('Quiz Link Copied! Paste in your College WhatsApp Group 📋', 'success');
+                  showToast('Quiz link copied. Paste it into your group chat 📋', 'success');
                 }}
-                className="py-3.5 px-4 rounded-2xl bg-[#B8FF01] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] font-black text-sm flex items-center justify-center gap-2"
+                className="py-3.5 px-4 rounded-2xl bg-[#B8FF01] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] font-black text-sm flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Copy className="w-4 h-4" /> Copy Quiz Link
               </button>
@@ -3302,7 +3306,14 @@ export default function App() {
                 )}`}
                 target="_blank"
                 rel="noreferrer"
-                className="py-3.5 px-4 rounded-2xl bg-[#25D366] text-[#111] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] font-black text-sm flex items-center justify-center gap-2"
+                aria-disabled={!canShareQuizOnline}
+                onClick={(e) => {
+                  if (!canShareQuizOnline) {
+                    e.preventDefault();
+                    showToast('Online sharing is unavailable until this quiz syncs to Firebase.', 'error');
+                  }
+                }}
+                className={`py-3.5 px-4 rounded-2xl bg-[#25D366] text-[#111] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] font-black text-sm flex items-center justify-center gap-2 ${!canShareQuizOnline ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <MessageCircle className="w-4 h-4" /> Share on WhatsApp
               </a>
