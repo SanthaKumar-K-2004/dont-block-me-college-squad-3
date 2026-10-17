@@ -2136,14 +2136,23 @@ export default function App() {
       attempts: []
     };
 
-    await saveQuizToCloud(newQuiz);
+    // A cloud write can fail even though the quiz is safely stored locally.
+    // Do not leave the creator trapped in the editor on a network/rules error.
+    let cloudPublished = false;
+    try {
+      await saveQuizToCloud(newQuiz);
+      cloudPublished = Boolean(db && user);
+    } catch (error) {
+      console.error('Quiz cloud publish failed; keeping the local draft:', error);
+    }
+
     setActiveQuizId(newId);
     setUnlockedQuizzes((prev) => ({ ...prev, [newId]: true }));
     setMode('share');
-    if (db && user) {
+    if (cloudPublished) {
       showToast(`Quiz #${newId} is published! Share with your College Gang 🚀`, 'success');
     } else {
-      showToast('Quiz saved on this device. Online sharing and a shared scoreboard need Firebase cloud setup.', 'error');
+      showToast('Quiz saved on this device, but online sharing is not ready. Check Firebase setup and retry before sending the link.', 'error');
     }
   };
 
