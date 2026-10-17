@@ -1559,6 +1559,7 @@ export default function App() {
   const [linkedQuizId, setLinkedQuizId] = useState('');
   const [linkedQuizError, setLinkedQuizError] = useState('');
   const [cloudSnapshotReady, setCloudSnapshotReady] = useState(false);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState(db ? 'connecting' : 'offline');
 
   // View Mode: 'create' | 'share' | 'play' | 'scoreboard'
   const [mode, setMode] = useState('create');
@@ -1805,6 +1806,8 @@ export default function App() {
     if (!normalizedId) return;
     setLinkedQuizId(normalizedId);
     setLinkedQuizError('');
+    setCloudSnapshotReady(false);
+    setCloudSyncStatus(db ? 'connecting' : 'offline');
     setActiveQuizId(normalizedId);
     setMode('share');
   }, []);
@@ -1837,6 +1840,7 @@ export default function App() {
       } catch (e) {
         console.warn('Firebase authentication failed:', e);
         setCloudSnapshotReady(true);
+        setCloudSyncStatus('error');
         setLinkedQuizError('cloud');
         showToast('Cloud sign-in failed. Check Firebase Authentication settings and retry.', 'error');
       }
@@ -1844,8 +1848,10 @@ export default function App() {
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
+      if (u) setCloudSyncStatus('connecting');
       if (!u) {
         setCloudSnapshotReady(true);
+        setCloudSyncStatus('error');
         setLinkedQuizError('cloud');
       } else {
         setLinkedQuizError('');
@@ -1883,9 +1889,11 @@ export default function App() {
           setQuizzesMap((prev) => ({ ...prev, ...fetched }));
         }
         setCloudSnapshotReady(true);
+        setCloudSyncStatus('live');
       },
       (err) => {
         setCloudSnapshotReady(true);
+        setCloudSyncStatus('error');
         console.warn('Firestore snapshot fallback:', err);
         showToast('Could not load shared quizzes. Check your connection and Firebase access rules.', 'error');
       }
@@ -3201,25 +3209,32 @@ export default function App() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div>
                 <span className="inline-block px-3 py-1 rounded-full bg-[#B8FF01] border-2 border-[#111] font-black text-xs uppercase mb-1">
-                  {db && user ? 'SQUAD QUIZ LIVE' : 'DEVICE-ONLY QUIZ'} • #{activeQuiz.id}
+                  {cloudSyncStatus === 'live' ? 'SQUAD QUIZ LIVE' : cloudSyncStatus === 'connecting' ? 'CONNECTING TO CLOUD…' : 'DEVICE-ONLY / OFFLINE'} • #{activeQuiz.id}
                 </span>
                 <h1 className="text-2xl sm:text-3xl font-black">
                   Share {activeQuiz.creatorName}&apos;s College Audit ⚡
                 </h1>
               </div>
-              <div className="px-4 py-2 rounded-2xl bg-[#FFFDF5] border-[3px] border-[#111] text-right">
-                <div className="text-[10px] font-black text-neutral-500">CREATOR PIN</div>
-                <div className="font-mono font-black text-lg">{activeQuiz.pin}</div>
-              </div>
+              {activeQuiz.pin ? (
+                <div className="px-4 py-2 rounded-2xl bg-[#FFFDF5] border-[3px] border-[#111] text-right">
+                  <div className="text-[10px] font-black text-neutral-500">CREATOR PIN</div>
+                  <div className="font-mono font-black text-lg">{activeQuiz.pin}</div>
+                </div>
+              ) : (
+                <div className="px-4 py-2 rounded-2xl bg-neutral-100 border-2 border-neutral-300 text-right">
+                  <div className="text-[10px] font-black text-neutral-500">OWNER ACCESS</div>
+                  <div className="text-xs font-bold">Creator device only</div>
+                </div>
+              )}
             </div>
 
-            {!db || !user ? (
+            {cloudSyncStatus !== 'live' ? (
               <div role="status" className="mb-6 rounded-2xl border-[3px] border-[#111] bg-amber-50 p-4 shadow-[3px_3px_0px_#111]">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-700" />
                   <div>
-                    <p className="font-black text-sm">Online sharing is not connected yet</p>
-                    <p className="text-sm mt-1">This quiz is saved on this device only. Friends on other phones cannot load the quiz or add scores to your shared leaderboard until Firebase web configuration and Firestore access rules are enabled for this deployment.</p>
+                    <p className="font-black text-sm">{cloudSyncStatus === 'connecting' ? 'Connecting to the shared scoreboard…' : 'Online sharing is not connected'}</p>
+                    <p className="text-sm mt-1">{cloudSyncStatus === 'connecting' ? 'Waiting for Firebase to confirm a live quiz snapshot. If this takes too long, check your connection and Firebase setup.' : 'This quiz is saved on this device only until Firebase sign-in and Firestore access rules are working. Friends on other phones cannot load or submit scores while cloud sync is offline.'}</p>
                   </div>
                 </div>
               </div>
