@@ -19,7 +19,10 @@ import {
   doc,
   setDoc,
   onSnapshot,
-  collection
+  collection,
+  query,
+  orderBy,
+  limit
 } from 'firebase/firestore';
 
 // ============================================================================
@@ -1831,11 +1834,22 @@ export default function App() {
           await signInAnonymously(auth);
         }
       } catch (e) {
-        console.warn('Auth fallback:', e);
+        console.warn('Firebase authentication failed:', e);
+        setCloudSnapshotReady(true);
+        setLinkedQuizError('cloud');
+        showToast('Cloud sign-in failed. Check Firebase Authentication settings and retry.', 'error');
       }
     };
     initAuth();
-    const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      if (!u) {
+        setCloudSnapshotReady(true);
+        setLinkedQuizError('cloud');
+      } else {
+        setLinkedQuizError('');
+      }
+    });
     return () => unsubscribe();
   }, []);
 
@@ -1878,23 +1892,95 @@ export default function App() {
     return () => unsubscribe();
   }, [user]);
 
-  const saveQuizToCloud = async (quizObj) => {
-    setQuizzesMap((prev) => ({ ...prev, [quizObj.id]: quizObj }));
-    if (user && db) {
-      try {
-        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', quizObj.id);
-        await setDoc(docRef, {
-          ...quizObj,
-          questions: JSON.stringify(quizObj.questions),
-          attempts: JSON.stringify(quizObj.attempts || [])
+  // Attempt documents are independent records, so simultaneous players never
+  // replace a shared attempts array on the parent quiz document.
+  const cloudQuizIds = Object.keys(quizzesMap).sort().join('|');
+  useEffect(() => {
+    if (!user || !db || !cloudQuizIds) return undefined;
+    const cleanups = cloudQuizIds.split('|').filter(Boolean).map((quizId) => {
+      const attemptsCol = collection(
+        db, 'artifacts', appId, 'public', 'data', 'quizzes', quizId, 'attempts'
+      );
+      const attemptsQuery = query(attemptsCol, orderBy('timestamp', 'desc'), limit(500));
+      return onSnapshot(attemptsQuery, (snapshot) => {
+        const remoteAttempts = [];
+        snapshot.forEach((attemptDoc) => remoteAttempts.push({ ...attemptDoc.data(), id: attemptDoc.id }));
+        if (!remoteAttempts.length) return;
+        setQuizzesMap((prev) => {
+          const quiz = prev[quizId];
+          if (!quiz) return prev;
+          const merged = new Map();
+          // Cloud records win on duplicate IDs; legacy embedded attempts remain visible.
+          [...(quiz.attempts || []), ...remoteAttempts].forEach((attempt) => {
+            if (attempt?.id) merged.set(attempt.id, attempt);
+          });
+          const attempts = [...merged.values()].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+          return { ...prev, [quizId]: { ...quiz, attempts } };
         });
-      } catch (e) {
-        console.warn('Cloud save skipped:', e);
-        showToast(
-          'Saved on this device, but cloud sync failed. Check Firebase config and Firestore rules.',
-          'error'
-        );
+      }, (error) => {
+        console.warn('Attempt sync unavailable for quiz', quizId, error);
+      });
+    });
+    return () => cleanups.forEach((unsubscribe) => unsubscribe());
+  }, [user, cloudQuizIds]);
+
+  const saveQuizToCloud = async (quizObj) => {
+    const previousQuiz = quizzesMap[quizObj.id];
+    const previousAttempts = previousQuiz?.attempts || [];
+    const incomingAttempts = quizObj.attempts || [];
+    const knownAttemptIds = new Set(previousAttempts.map((attempt) => attempt.id));
+    const attemptsToWrite = incomingAttempts.filter((attempt) => attempt?.id && !knownAttemptIds.has(attempt.id));
+
+    // Keep local/offline data complete, merging attempts to avoid stale UI writes.
+    setQuizzesMap((prev) => {
+      const current = prev[quizObj.id];
+      const mergedAttempts = new Map();
+      [...(current?.attempts || []), ...incomingAttempts].forEach((attempt) => {
+        if (attempt?.id) mergedAttempts.set(attempt.id, attempt);
+      });
+      return {
+        ...prev,
+        [quizObj.id]: {
+          ...(current || {}),
+          ...quizObj,
+          attempts: [...mergedAttempts.values()].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+        }
+      };
+    });
+
+    if (!user || !db) {
+      if (attemptsToWrite.length) {
+        showToast('Result saved on this device. Cloud scoreboard is not connected.', 'error');
       }
+      return;
+    }
+
+    try {
+      const quizRef = doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', quizObj.id);
+      if (!previousQuiz) {
+        // Quiz metadata is immutable after publishing. Do not publish the creator PIN.
+        const { attempts: _attempts, pin: _pin, ...publicQuiz } = quizObj;
+        await setDoc(quizRef, {
+          ...publicQuiz,
+          questions: JSON.stringify(publicQuiz.questions)
+        });
+      }
+
+      // Each attempt has a stable document ID: concurrent players cannot overwrite
+      // each other's scores, retries are idempotent, and the quiz document stays small.
+      for (const attempt of attemptsToWrite) {
+        const attemptRef = doc(
+          db, 'artifacts', appId, 'public', 'data', 'quizzes', quizObj.id, 'attempts', attempt.id
+        );
+        await setDoc(attemptRef, attempt);
+      }
+    } catch (e) {
+      console.warn('Cloud save skipped:', e);
+      showToast(
+        'Saved on this device, but cloud sync failed. Check Firebase config, anonymous sign-in, and Firestore rules.',
+        'error'
+      );
+      throw e;
     }
   };
 
@@ -2607,7 +2693,7 @@ export default function App() {
                 ? 'Loading the shared quiz securely…'
                 : linkedQuizError === 'missing'
                 ? 'This quiz could not be found on this device or in the cloud. Ask the creator to publish it again and send a fresh link.'
-                : 'We could not load this quiz. Check your connection and try again.'}
+                : 'Cloud sign-in or sync failed. Check your connection and Firebase Authentication/Firestore rules, then retry.'}
             </p>
             {linkedQuizError && (
               <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
