@@ -1096,7 +1096,7 @@ const COMMONS_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 const COMMONS_FETCH_TIMEOUT = 4500;
 const COMMONS_IMAGE_TIMEOUT = 3200;
 
-const plainCommonsText = (value = '') => String(value).replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&#160;/g, ' ').replace(/&amp;/g, '&').replace(/\\s+/g, ' ').trim();
+const plainCommonsText = (value = '') => String(value).replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&#160;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 
 const readCommonsStorage = (key) => {
   try {
@@ -1160,9 +1160,9 @@ const fetchCommonsPhoto = (query) => {
 
   // Keep only distinctive terms. Broad, long question text makes Commons search slow and irrelevant.
   const stopWords = new Set(['what','who','which','where','when','why','how','does','did','can','will','would','your','you','the','and','for','with','from','into','about','this','that','their','they','still','always','actual','favorite','favourite','during','college','question','option','name','vibe','status','best']);
-  const terms = rawQuery.toLowerCase().replace(/[^a-z0-9\\s-]/g, ' ').split(/\\s+/)
+  const terms = rawQuery.toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/)
     .filter((word) => word.length > 2 && !stopWords.has(word));
-  const cleanQuery = [...new Set(terms)].slice(0, 6).join(' ') || rawQuery.split(/\\s+/).slice(0, 5).join(' ');
+  const cleanQuery = [...new Set(terms)].slice(0, 6).join(' ') || rawQuery.split(/\s+/).slice(0, 5).join(' ');
   const params = new URLSearchParams({
     action: 'query',
     generator: 'search',
@@ -1182,7 +1182,7 @@ const fetchCommonsPhoto = (query) => {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timer = controller ? window.setTimeout(() => controller.abort(), COMMONS_FETCH_TIMEOUT) : null;
     try {
-      const response = await fetch(`https://commons.wikimedia.org/w/api.php?${params.toString()}`, {
+      const response = await fetch('https://commons.wikimedia.org/w/api.php?' + params.toString(), {
         signal: controller?.signal,
         headers: { Accept: 'application/json' }
       });
@@ -1196,17 +1196,17 @@ const fetchCommonsPhoto = (query) => {
         const metadata = info?.extmetadata || {};
         const hasLicense = Boolean(metadata.LicenseShortName?.value || metadata.UsageTerms?.value);
         return Boolean(info?.thumburl) &&
-          /^image\\/(jpeg|png|webp|gif)$/i.test(mime) &&
+          /^image\/(jpeg|png|webp|gif)$/i.test(mime) &&
           Number(info.width || 0) >= 320 &&
           hasLicense &&
-          !/\\b(logo|icon|favicon|watermark)\\b/i.test(title);
+          !/\b(logo|icon|favicon|watermark)\b/i.test(title);
       });
       if (!usable) return null;
       const info = usable.imageinfo[0];
       const meta = info.extmetadata || {};
       const photo = {
         url: info.thumburl || info.url,
-        pageUrl: `https://commons.wikimedia.org/wiki/${encodeURIComponent(usable.title || '').replace(/%3A/gi, ':').replace(/%20/g, '_')}`,
+        pageUrl: 'https://commons.wikimedia.org/wiki/' + encodeURIComponent(usable.title || '').replace(/%3A/gi, ':').replace(/%20/g, '_'),
         title: String(usable.title || '').replace(/^File:/, ''),
         artist: plainCommonsText(meta.Artist?.value || ''),
         license: plainCommonsText(meta.LicenseShortName?.value || meta.UsageTerms?.value || 'License details'),
