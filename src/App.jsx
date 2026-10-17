@@ -2595,7 +2595,7 @@ export default function App() {
           </div>
         </div>
 
-        {linkedQuizId && linkedQuizError && (
+        {linkedQuizId && (linkedQuizError || (db && !cloudSnapshotReady && !quizzesMap[linkedQuizId])) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#FFFDF5] p-5">
           <div role="alert" className="w-full max-w-lg rounded-3xl border-[3px] border-[#111] bg-white p-6 text-center shadow-[7px_7px_0px_#111]">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border-[3px] border-[#111] bg-[#FFB800]">
@@ -2603,22 +2603,26 @@ export default function App() {
             </div>
             <h1 className="text-2xl font-black">Quiz link unavailable</h1>
             <p className="mt-3 text-sm font-bold text-neutral-600">
-              {linkedQuizError === 'missing'
+              {!linkedQuizError
+                ? 'Loading the shared quiz securely…'
+                : linkedQuizError === 'missing'
                 ? 'This quiz could not be found on this device or in the cloud. Ask the creator to publish it again and send a fresh link.'
                 : 'We could not load this quiz. Check your connection and try again.'}
             </p>
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="rounded-xl border-[3px] border-[#111] bg-[#B8FF01] px-5 py-3 font-black"
-              >Try again</button>
-              <button
-                type="button"
-                onClick={() => { window.history.replaceState({}, '', window.location.pathname); setLinkedQuizId(''); setLinkedQuizError(''); setActiveQuizId(INITIAL_DEMO_QUIZ.id); setMode('create'); }}
-                className="rounded-xl border-[3px] border-[#111] bg-white px-5 py-3 font-black"
-              >Create a quiz instead</button>
-            </div>
+            {linkedQuizError && (
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="rounded-xl border-[3px] border-[#111] bg-[#B8FF01] px-5 py-3 font-black"
+                >Try again</button>
+                <button
+                  type="button"
+                  onClick={() => { window.history.replaceState({}, '', window.location.pathname); setLinkedQuizId(''); setLinkedQuizError(''); setActiveQuizId(INITIAL_DEMO_QUIZ.id); setMode('create'); }}
+                  className="rounded-xl border-[3px] border-[#111] bg-white px-5 py-3 font-black"
+                >Create a quiz instead</button>
+              </div>
+            )}
           </div>
         </div>
       )}
