@@ -1641,6 +1641,7 @@ export default function App() {
   const [lastSelectedOption, setLastSelectedOption] = useState(null);
   const answerLockRef = useRef(false);
   const cloudQuizIdsRef = useRef(new Set());
+  // Track confirmed remote attempt IDs separately from local attempts so failed writes can retry.
   const [latestAttempt, setLatestAttempt] = useState(null);
 
   // Combo Streak & Live Timer
@@ -1917,6 +1918,7 @@ export default function App() {
       return onSnapshot(attemptsQuery, (snapshot) => {
         const remoteAttempts = [];
         snapshot.forEach((attemptDoc) => remoteAttempts.push({ ...attemptDoc.data(), id: attemptDoc.id }));
+        cloudAttemptIdsRef.current.set(quizId, new Set(remoteAttempts.map((attempt) => attempt.id)));
         if (!remoteAttempts.length) return;
         setQuizzesMap((prev) => {
           const quiz = prev[quizId];
@@ -1933,10 +1935,9 @@ export default function App() {
   }, [user, cloudQuizIds]);
 
   const saveQuizToCloud = async (quizObj) => {
-    const previousQuiz = quizzesMap[quizObj.id];
-    const previousAttempts = previousQuiz?.attempts || [];
     const incomingAttempts = quizObj.attempts || [];
-    const knownAttemptIds = new Set(previousAttempts.map((attempt) => attempt.id));
+    const knownAttemptIds = cloudAttemptIdsRef.current.get(quizObj.id) || new Set();
+    // Local presence is not proof of cloud persistence: retry every attempt not confirmed remotely.
     const attemptsToWrite = incomingAttempts.filter((attempt) => attempt?.id && !knownAttemptIds.has(attempt.id));
 
     // Keep local/offline data complete, merging attempts to avoid stale UI writes.
@@ -1987,6 +1988,9 @@ export default function App() {
           db, 'artifacts', appId, 'public', 'data', 'quizzes', quizObj.id, 'attempts', attempt.id
         );
         await setDoc(attemptRef, attempt);
+        const syncedIds = cloudAttemptIdsRef.current.get(quizObj.id) || new Set();
+        syncedIds.add(attempt.id);
+        cloudAttemptIdsRef.current.set(quizObj.id, syncedIds);
       }
     } catch (e) {
       console.warn('Cloud save skipped:', e);
