@@ -1552,6 +1552,9 @@ export default function App() {
   const [activeQuizId, setActiveQuizId] = useState(INITIAL_DEMO_QUIZ.id);
   const [localStoreReady, setLocalStoreReady] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
+  const [linkedQuizId, setLinkedQuizId] = useState('');
+  const [linkedQuizError, setLinkedQuizError] = useState('');
+  const [cloudSnapshotReady, setCloudSnapshotReady] = useState(false);
 
   // View Mode: 'create' | 'share' | 'play' | 'scoreboard'
   const [mode, setMode] = useState('create');
@@ -1630,6 +1633,7 @@ export default function App() {
   const [pQuestionIdx, setPQuestionIdx] = useState(0);
   const [pAnswers, setPAnswers] = useState({});
   const [lastSelectedOption, setLastSelectedOption] = useState(null);
+  const answerLockRef = useRef(false);
   const [latestAttempt, setLatestAttempt] = useState(null);
 
   // Combo Streak & Live Timer
@@ -1743,7 +1747,7 @@ export default function App() {
         const saved = JSON.parse(raw);
         if (saved && typeof saved === 'object') {
           if (saved.lang === 'en' || saved.lang === 'desi') setLang(saved.lang);
-          if (typeof saved.muted === 'boolean') { setMuted(saved.muted); sfx.muted = saved.muted; }
+          if (typeof saved.muted === 'boolean') { setMuted(saved.muted); sfx.setMuted(saved.muted); }
           if (typeof saved.cName === 'string') setCName(saved.cName);
           if (['m', 'f', 't'].includes(saved.cPronoun)) setCPronoun(saved.cPronoun);
           if (typeof saved.cAvatar === 'string') setCAvatar(saved.cAvatar);
@@ -1795,25 +1799,25 @@ export default function App() {
     if (!linkedId) return;
     const normalizedId = linkedId.trim().slice(0, 32);
     if (!normalizedId) return;
+    setLinkedQuizId(normalizedId);
+    setLinkedQuizError('');
     setActiveQuizId(normalizedId);
     setMode('share');
   }, []);
 
-  // Do not silently show the demo quiz for a shared quiz ID that is unavailable locally.
+  // Never silently substitute the starter quiz for a missing shared quiz.
   useEffect(() => {
-    if (!localStoreReady || db || !activeQuizId || activeQuizId === INITIAL_DEMO_QUIZ.id) return;
-    if (!quizzesMap[activeQuizId]) {
-      const params = new URLSearchParams(window.location.search);
-      if (params.has('id')) {
-        setActiveQuizId(INITIAL_DEMO_QUIZ.id);
-        setMode('create');
-        showToast(
-          'This quiz is not saved on this device. Cross-device links require Firebase cloud sync.',
-          'error'
-        );
-      }
+    if (!linkedQuizId || !localStoreReady) return;
+    if (quizzesMap[linkedQuizId]) {
+      setLinkedQuizError('');
+      return;
     }
-  }, [localStoreReady, activeQuizId, quizzesMap, db]);
+    if (!db) {
+      setLinkedQuizError('missing');
+      return;
+    }
+    if (cloudSnapshotReady) setLinkedQuizError('missing');
+  }, [linkedQuizId, localStoreReady, quizzesMap, db, cloudSnapshotReady]);
 
   // FIREBASE AUTH & REAL-TIME SYNC
   // ============================================================================
@@ -1863,8 +1867,13 @@ export default function App() {
         if (Object.keys(fetched).length > 0) {
           setQuizzesMap((prev) => ({ ...prev, ...fetched }));
         }
+        setCloudSnapshotReady(true);
       },
-      (err) => console.warn('Firestore snapshot fallback:', err)
+      (err) => {
+        setCloudSnapshotReady(true);
+        console.warn('Firestore snapshot fallback:', err);
+        showToast('Could not load shared quizzes. Check your connection and Firebase access rules.', 'error');
+      }
     );
     return () => unsubscribe();
   }, [user]);
@@ -2064,11 +2073,17 @@ export default function App() {
     setXpPoints(0);
     setTotalTimeSec(0);
     setLastSelectedOption(null);
+    answerLockRef.current = false;
     setPlayerStep('quiz');
   };
 
   const handleFriendPickOption = (optionId) => {
-    if (lastSelectedOption) return;
+    if (answerLockRef.current || lastSelectedOption || playerStep !== 'quiz') return;
+    if (!activeQuiz.questions?.length || pQuestionIdx < 0 || pQuestionIdx >= activeQuiz.questions.length) {
+      showToast('This quiz question is unavailable. Please restart the quiz.', 'error');
+      return;
+    }
+    answerLockRef.current = true;
     const currentQ = activeQuiz.questions[pQuestionIdx];
     const isCorrect = optionId === currentQ.correctOptionId;
 
@@ -2126,9 +2141,10 @@ export default function App() {
 
     setTimeout(async () => {
       setKineticPopup(null);
-      setLastSelectedOption(null);
 
       if (pQuestionIdx < activeQuiz.questions.length - 1) {
+        answerLockRef.current = false;
+        setLastSelectedOption(null);
         setPQuestionIdx((prev) => prev + 1);
       } else {
         let score = 0;
@@ -2169,7 +2185,12 @@ export default function App() {
 
         setLatestAttempt(attemptObj);
         setPlayerStep('result');
-        await saveQuizToCloud(updatedQuiz);
+        try {
+          await saveQuizToCloud(updatedQuiz);
+        } catch (error) {
+          console.error('Attempt save failed:', error);
+          showToast('Your result is shown, but saving it failed. Please retry when online.', 'error');
+        }
       }
     }, instantFeedback ? 650 : 240);
   };
@@ -2574,7 +2595,34 @@ export default function App() {
           </div>
         </div>
 
-        {/* Flow Switcher Bar */}
+        {linkedQuizId && linkedQuizError && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#FFFDF5] p-5">
+          <div role="alert" className="w-full max-w-lg rounded-3xl border-[3px] border-[#111] bg-white p-6 text-center shadow-[7px_7px_0px_#111]">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border-[3px] border-[#111] bg-[#FFB800]">
+              <AlertTriangle className="h-8 w-8" />
+            </div>
+            <h1 className="text-2xl font-black">Quiz link unavailable</h1>
+            <p className="mt-3 text-sm font-bold text-neutral-600">
+              {linkedQuizError === 'missing'
+                ? 'This quiz could not be found on this device or in the cloud. Ask the creator to publish it again and send a fresh link.'
+                : 'We could not load this quiz. Check your connection and try again.'}
+            </p>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="rounded-xl border-[3px] border-[#111] bg-[#B8FF01] px-5 py-3 font-black"
+              >Try again</button>
+              <button
+                type="button"
+                onClick={() => { window.history.replaceState({}, '', window.location.pathname); setLinkedQuizId(''); setLinkedQuizError(''); setActiveQuizId(INITIAL_DEMO_QUIZ.id); setMode('create'); }}
+                className="rounded-xl border-[3px] border-[#111] bg-white px-5 py-3 font-black"
+              >Create a quiz instead</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Flow Switcher Bar */}
         <div className="max-w-6xl mx-auto mt-3 pt-2.5 border-t-2 border-dashed border-neutral-300 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-2">
             <button
