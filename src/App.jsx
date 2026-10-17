@@ -2622,13 +2622,15 @@ export default function App() {
       {/* ==================================================================== */}
       <header className="sticky top-0 z-40 bg-[#FFFDF5]/95 backdrop-blur border-b-[3px] border-[#111] px-3 sm:px-6 py-3">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          {/* Logo */}
-          <div
+          {/* Logo / accessible home action */}
+          <button
+            type="button"
+            aria-label="Go to quiz creator"
             onClick={() => {
               sfx.click();
               setMode('create');
             }}
-            className="flex items-center gap-3 cursor-pointer group"
+            className="flex items-center gap-3 cursor-pointer group text-left border-0 bg-transparent p-0"
           >
             <img
               src="/squad-logo.svg"
@@ -2652,7 +2654,7 @@ export default function App() {
                   : 'காலேஜ் மச்சான் & பெஸ்டி தகுதித் தேர்வு • லைவ் ரேடார் கிராப்'}
               </p>
             </div>
-          </div>
+          </button>
 
           {/* Right Quick Actions */}
           <div className="flex items-center gap-2 header-quick-actions">
@@ -2696,6 +2698,9 @@ export default function App() {
             </button>
 
             <button
+              type="button"
+              aria-label={muted ? 'Turn sound effects on' : 'Turn sound effects off'}
+              aria-pressed={muted}
               onClick={() => {
                 const nextMuted = !muted;
                 sfx.setMuted(nextMuted);
@@ -2743,7 +2748,7 @@ export default function App() {
         </div>
       )}
       {/* Flow Switcher Bar */}
-        <div className="max-w-6xl mx-auto mt-3 pt-2.5 border-t-2 border-dashed border-neutral-300 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+        <nav aria-label="Quiz sections" className="max-w-6xl mx-auto mt-3 pt-2.5 border-t-2 border-dashed border-neutral-300 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-2 header-flow-actions">
             <button
               onClick={() => {
@@ -2811,7 +2816,7 @@ export default function App() {
           </div>
 
 
-        </div>
+        </nav>
       </header>
 
       {/* ==================================================================== */}
