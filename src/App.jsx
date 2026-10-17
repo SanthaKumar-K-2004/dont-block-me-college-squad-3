@@ -178,7 +178,7 @@ const QUESTION_POOL = [
         emoji: '🔥',
         en: 'Thalapathy Vijay — mass action, dance and first-day-first-show energy',
         desi: 'தளபதி விஜய் — மாஸ் ஆக்ஷன், டான்ஸ், FDFS கொண்டாட்டம்',
-        img: '',
+        img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-amber-500 to-red-600'
       },
       {
@@ -187,7 +187,7 @@ const QUESTION_POOL = [
         emoji: '😎',
         en: 'Ajith Kumar — Mankatha swagger, stylish action and bike-racing vibe',
         desi: 'அஜித் குமார் — மங்காத்தா ஸ்வாக், ஸ்டைலிஷ் ஆக்ஷன், பைக் ரேசிங் வைப்',
-        img: '',
+        img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-slate-800 to-red-700'
       },
       {
@@ -196,7 +196,7 @@ const QUESTION_POOL = [
         emoji: '🦁',
         en: 'Suriya — Singam energy, versatile acting and emotional roles',
         desi: 'சூர்யா — சிங்கம் எனர்ஜி, வித்தியாசமான நடிப்பு, எமோஷனல் ரோல்ஸ்',
-        img: '',
+        img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-purple-700 to-indigo-900'
       },
       {
@@ -205,7 +205,7 @@ const QUESTION_POOL = [
         emoji: '🎭',
         en: 'Sivakarthikeyan — relatable comedy, family entertainers and feel-good roles',
         desi: 'சிவகார்த்திகேயன் — காமெடி, ஃபேமிலி எண்டர்டெய்னர், ரிலேட்டபிள் வைப்',
-        img: '',
+        img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-emerald-500 to-teal-700'
       }
     ]
@@ -224,7 +224,7 @@ const QUESTION_POOL = [
         emoji: '😜',
         en: 'Shinchan (Non-stop Comedy & Trouble Maker)',
         desi: 'ஷின்சான் (சேட்டை & குலுங்க குலுங்க சிரிப்பு)',
-        img: '',
+        img: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-yellow-400 to-red-500'
       },
       {
@@ -233,7 +233,7 @@ const QUESTION_POOL = [
         emoji: '🐉',
         en: 'Ben 10 — alien transformations, Omnitrix gadgets and action adventures',
         desi: 'பென் 10 — ஏலியன் டிரான்ஸ்ஃபர்மேஷன், ஓம்னிட்ரிக்ஸ் கேட்ஜெட்ஸ், ஆக்ஷன்',
-        img: '',
+        img: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-green-500 to-emerald-800'
       },
       {
@@ -242,7 +242,7 @@ const QUESTION_POOL = [
         emoji: '🔔',
         en: 'Doraemon — futuristic gadgets, Anywhere Door and time-travel fun',
         desi: 'டோரேமான் — எதிர்கால கேட்ஜெட்ஸ், எங்கேயும் கதவு, டைம் டிராவல்',
-        img: '',
+        img: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-sky-400 to-blue-700'
       },
       {
@@ -251,7 +251,7 @@ const QUESTION_POOL = [
         emoji: '🍥',
         en: 'Naruto — ninja battles, determination and unforgettable squad bonds',
         desi: 'நருடோ — நிஞ்ஜா சண்டை, விடாமுயற்சி, மறக்க முடியாத நண்பர்கள்',
-        img: '',
+        img: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-orange-500 to-rose-700'
       }
     ]
@@ -1014,44 +1014,170 @@ function computeRadarMetrics(questions, answersMap) {
 // ============================================================================
 // 7. SMART REAL ONLINE IMAGE COMPONENT + 3D TILT TRADING CARD
 // ============================================================================
-const SmartCardImage = ({ src, alt, emoji = '✨', tag, gradient = 'from-rose-500 to-amber-500', className = 'h-36' }) => {
+// Free, openly licensed photos are discovered from Wikimedia Commons at runtime.
+// Search results include the file page and license metadata so credits remain visible.
+const commonsPhotoCache = new Map();
+const plainCommonsText = (value = '') => String(value).replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&#160;/g, ' ').replace(/&amp;/g, '&').replace(/\\s+/g, ' ').trim();
+
+const fetchCommonsPhoto = (query) => {
+  const cleanQuery = String(query || '').trim().slice(0, 140);
+  if (!cleanQuery) return Promise.resolve(null);
+  const cacheKey = cleanQuery.toLowerCase();
+  if (commonsPhotoCache.has(cacheKey)) return commonsPhotoCache.get(cacheKey);
+  const params = new URLSearchParams({
+    action: 'query',
+    generator: 'search',
+    gsrsearch: cleanQuery,
+    gsrnamespace: '6',
+    gsrlimit: '8',
+    prop: 'imageinfo',
+    iiprop: 'url|extmetadata',
+    iiurlwidth: '800',
+    format: 'json',
+    origin: '*'
+  });
+  const request = fetch(`https://commons.wikimedia.org/w/api.php?${params.toString()}`, {
+    headers: { Accept: 'application/json' }
+  }).then((response) => {
+    if (!response.ok) throw new Error('Commons image search unavailable');
+    return response.json();
+  }).then((data) => {
+    const pages = Object.values(data?.query?.pages || {}).sort((a, b) => (a.index ?? 999) - (b.index ?? 999));
+    const usable = pages.find((page) => {
+      const info = page.imageinfo?.[0];
+      const mime = String(info?.mime || '');
+      const title = String(page.title || '');
+      return Boolean(info?.thumburl) &&
+        /^image\\/(jpeg|png|webp|gif)$/i.test(mime) &&
+        Number(info.width || 0) >= 320 &&
+        !/\\b(logo|icon|favicon|watermark)\\b/i.test(title);
+    });
+    if (!usable) return null;
+    const info = usable.imageinfo[0];
+    const meta = info.extmetadata || {};
+    const title = String(usable.title || '').replace(/^File:/, '');
+    return {
+      url: info.thumburl || info.url,
+      pageUrl: `https://commons.wikimedia.org/wiki/${encodeURIComponent(usable.title || '').replace(/%3A/gi, ':').replace(/%20/g, '_')}`,
+      title,
+      artist: plainCommonsText(meta.Artist?.value || ''),
+      license: plainCommonsText(meta.LicenseShortName?.value || meta.UsageTerms?.value || 'License details'),
+      licenseUrl: meta.LicenseUrl?.value || ''
+    };
+  }).catch((error) => {
+    console.info('Open image search skipped:', error?.message || error);
+    return null;
+  });
+  commonsPhotoCache.set(cacheKey, request);
+  return request;
+};
+
+const useCommonsPhoto = (query) => {
+  const [photo, setPhoto] = useState(null);
+  useEffect(() => {
+    let active = true;
+    setPhoto(null);
+    fetchCommonsPhoto(query).then((result) => {
+      if (active && result?.url) setPhoto(result);
+    });
+    return () => { active = false; };
+  }, [query]);
+  return photo;
+};
+
+const PhotoCredit = ({ photo, compact = false }) => {
+  if (!photo?.pageUrl) return null;
+  const credit = [photo.artist, photo.license].filter(Boolean).join(' · ');
+  return (
+    <a
+      href={photo.pageUrl}
+      target="_blank"
+      rel="noreferrer"
+      title={credit ? `Photo credit: ${credit}` : `Photo source: Wikimedia Commons`}
+      aria-label={credit ? `Photo credit: ${credit}` : 'Open photo source'}
+      onClick={(event) => event.stopPropagation()}
+      className={`absolute z-20 left-2 bottom-2 max-w-[76%] truncate rounded-md bg-black/75 text-white border border-white/30 px-1.5 py-1 text-[9px] leading-tight ${compact ? '' : 'sm:text-[10px]'}`}
+    >
+      {photo.artist ? `© ${photo.artist} · ${photo.license}` : `Wikimedia Commons · ${photo.license}`}
+    </a>
+  );
+};
+
+const OnlineQuestionBanner = ({ src, query, alt, className = 'w-full h-full object-cover opacity-65' }) => {
+  const photo = useCommonsPhoto(query);
+  const [failedUrl, setFailedUrl] = useState('');
+  useEffect(() => setFailedUrl(''), [photo?.url, src]);
+  const safeFallback = typeof src === 'string' && /^https:\/\//i.test(src.trim()) ? src.trim() : '';
+  const imageSrc = photo?.url && photo.url !== failedUrl ? photo.url : safeFallback;
+  return (
+    <>
+      {imageSrc && (
+        <img
+          key={imageSrc}
+          src={imageSrc}
+          alt={alt || 'Question photo'}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => {
+            if (photo?.url && imageSrc === photo.url) setFailedUrl(imageSrc);
+          }}
+          className={className}
+        />
+      )}
+      <PhotoCredit photo={photo} compact />
+    </>
+  );
+};
+
+const SmartCardImage = ({ src, query, alt, emoji = '✨', tag, gradient = 'from-rose-500 to-amber-500', className = 'h-36' }) => {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(!src);
+  const [failedOnlineUrl, setFailedOnlineUrl] = useState('');
+  const photo = useCommonsPhoto(query);
+  const safeSrc = typeof src === 'string' && /^https:\/\//i.test(src.trim()) ? src.trim() : '';
+  const displaySrc = photo?.url && photo.url !== failedOnlineUrl ? photo.url : safeSrc;
 
   useEffect(() => {
-    // Reset for every new URL; otherwise a previous image's state can hide the next image.
     setLoaded(false);
-    setErrored(!src);
-  }, [src]);
-
-  const safeSrc = typeof src === 'string' && /^https:\/\//i.test(src.trim()) ? src.trim() : '';
+    setErrored(!displaySrc);
+  }, [displaySrc]);
 
   return (
     <div className={`relative w-full ${className} overflow-hidden bg-neutral-900 border-b-[3px] border-[#111] select-none`}>
       <div className={`absolute inset-0 bg-gradient-to-br ${gradient} flex items-center justify-center`}>
-        {(!loaded || errored || !safeSrc) && (
-          <div className={`w-full h-full flex flex-col items-center justify-center p-3 text-white text-center ${!errored && safeSrc ? 'animate-pulse bg-white/10' : ''}`}>
+        {(!loaded || errored || !displaySrc) && (
+          <div className={`w-full h-full flex flex-col items-center justify-center p-3 text-white text-center ${!errored && displaySrc ? 'animate-pulse bg-white/10' : ''}`}>
             <span className="text-4xl drop-shadow">{emoji}</span>
             {errored && tag && <span className="mt-2 text-[10px] font-black uppercase tracking-wider bg-black/40 px-2 py-1 rounded">{tag}</span>}
           </div>
         )}
       </div>
-      {safeSrc && !errored && (
+      {displaySrc && (
         <img
-          key={safeSrc}
-          src={safeSrc}
+          key={displaySrc}
+          src={displaySrc}
           alt={alt || tag || 'Card visual'}
           loading="lazy"
           decoding="async"
           referrerPolicy="no-referrer"
-          onLoad={() => setLoaded(true)}
-          onError={() => { setLoaded(false); setErrored(true); }}
+          onLoad={() => { setLoaded(true); setErrored(false); }}
+          onError={() => {
+            setLoaded(false);
+            if (photo?.url && displaySrc === photo.url && safeSrc) {
+              setFailedOnlineUrl(displaySrc);
+              setErrored(false);
+            } else {
+              setErrored(true);
+            }
+          }}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent pointer-events-none" />
       {tag && <div className="absolute top-2.5 left-2.5 z-10 max-w-[80%] truncate px-2.5 py-0.5 rounded-md bg-[#111]/90 text-[#B8FF01] border border-white/30 font-black text-[10px] tracking-wider uppercase shadow">{tag}</div>}
       <div className="absolute bottom-2 right-2.5 z-10 w-9 h-9 rounded-xl bg-white border-2 border-[#111] shadow-[2px_2px_0px_#111] flex items-center justify-center text-lg">{emoji}</div>
+      <PhotoCredit photo={photo} />
     </div>
   );
 };
@@ -1128,6 +1254,7 @@ const TiltTradingCard = ({
       {/* Real Online Photography Header */}
       <SmartCardImage
         src={opt.img}
+        query={opt.imageQuery || `${opt.tag} ${opt.en}`}
         alt={opt.en}
         emoji={opt.emoji}
         tag={opt.tag}
@@ -2774,9 +2901,10 @@ export default function App() {
                     <div className="p-4 sm:p-6 rounded-3xl bg-[#FFFDF5] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] mb-6">
                       {/* Question Banner Header with Real Photo */}
                       <div className="question-banner relative min-h-[300px] sm:min-h-0 h-auto sm:h-36 rounded-2xl border-[3px] border-[#111] overflow-hidden mb-4 bg-neutral-900">
-                        <img
+                        <OnlineQuestionBanner
                           src={activeQ.bannerImg}
-                          alt={activeQ.category} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
+                          query={activeQ.imageQuery || `${activeQ.category} ${activeQ.en}`}
+                          alt={activeQ.category}
                           className="w-full h-full object-cover opacity-65"
                         />
                         <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/65 to-black/30 p-3 sm:p-4 flex flex-col justify-between gap-4">
@@ -3164,9 +3292,10 @@ export default function App() {
 
                       {/* Question Banner with Real Photography */}
                       <div className="question-banner relative min-h-[220px] sm:min-h-0 h-auto sm:h-36 rounded-2xl border-[3px] border-[#111] overflow-hidden mb-5 bg-neutral-900">
-                        <img
+                        <OnlineQuestionBanner
                           src={q.bannerImg}
-                          alt={q.category} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
+                          query={q.imageQuery || `${q.category} ${q.en}`}
+                          alt={q.category}
                           className="w-full h-full object-cover opacity-65"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/65 to-black/25 p-3 sm:p-4 flex flex-col justify-end gap-2">
