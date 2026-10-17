@@ -1017,7 +1017,7 @@ function computeRadarMetrics(questions, answersMap) {
 // Free, openly licensed photos are discovered from Wikimedia Commons at runtime.
 // Search results include the file page and license metadata so credits remain visible.
 const commonsPhotoCache = new Map();
-const plainCommonsText = (value = '') => String(value).replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&#160;/g, ' ').replace(/&amp;/g, '&').replace(/\\s+/g, ' ').trim();
+const plainCommonsText = (value = '') => String(value).replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&#160;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 
 const fetchCommonsPhoto = (query) => {
   const cleanQuery = String(query || '').trim().slice(0, 140);
@@ -1050,10 +1050,10 @@ const fetchCommonsPhoto = (query) => {
       const metadata = info?.extmetadata || {};
       const hasLicense = Boolean(metadata.LicenseShortName?.value || metadata.UsageTerms?.value);
       return Boolean(info?.thumburl) &&
-        /^image\\/(jpeg|png|webp|gif)$/i.test(mime) &&
+        /^image\/(jpeg|png|webp|gif)$/i.test(mime) &&
         Number(info.width || 0) >= 320 &&
         hasLicense &&
-        !/\\b(logo|icon|favicon|watermark)\\b/i.test(title);
+        !/\b(logo|icon|favicon|watermark)\b/i.test(title);
     });
     if (!usable) return null;
     const info = usable.imageinfo[0];
