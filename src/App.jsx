@@ -1891,7 +1891,20 @@ export default function App() {
         });
         if (Object.keys(fetched).length > 0) {
           Object.keys(fetched).forEach((quizId) => cloudQuizIdsRef.current.add(quizId));
-          setQuizzesMap((prev) => ({ ...prev, ...fetched }));
+          // A cloud metadata snapshot must not erase locally saved attempts that have
+          // not reached Firestore yet. Merge attempts independently from quiz fields.
+          setQuizzesMap((prev) => {
+            const merged = { ...prev };
+            Object.entries(fetched).forEach(([quizId, remoteQuiz]) => {
+              const localQuiz = prev[quizId];
+              merged[quizId] = {
+                ...localQuiz,
+                ...remoteQuiz,
+                attempts: mergeAttempts(localQuiz?.attempts || [], remoteQuiz.attempts || [])
+              };
+            });
+            return merged;
+          });
         }
         setCloudSnapshotReady(true);
         setCloudSyncStatus('live');
