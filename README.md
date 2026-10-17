@@ -15,8 +15,11 @@ The app accepts either the host-injected `__firebase_config` or Vite environment
 
 Set these in Vercel Project → Settings → Environment Variables, then redeploy. Do not use service-account private keys in frontend variables. Configure and test Firestore rules before production use. Without Firebase configuration, quizzes persist only in the same browser's local storage and sync between tabs on that browser; that is not cross-device sync.
 
-## Images and sound
-Remote images remain optional visual enhancements. Card images use a themed emoji/gradient fallback; other image slots hide broken image elements instead of showing a broken-image icon. Audio feedback uses a softer, capped Web Audio envelope to reduce harsh or overly loud tones.
+## Quiz integrity, recovery, images and sound
+- The leaderboard starts empty and only contains real quiz attempts; the demo simulator and seeded sample scores have been removed. Legacy seeded demo data is ignored.
+- Unfinished creator drafts and an in-progress quiz are saved to this browser's local storage and restored after refresh. Published quizzes and real attempts are also saved locally.
+- Remote images are optional. Failed images fall back to themed emoji/gradient cards; actor/cartoon option cards use a visual fallback instead of unrelated stock photos.
+- Short Web Audio effects use softer, capped envelopes and melodic success sounds. Browsers require a user gesture before audio can play.
 
 ## Share links
 Share links use the current deployed origin and query parameters (`/?id=...`). The quiz ID is restored from the URL. A quiz created on one device still needs Firebase configured for other devices to retrieve it.
