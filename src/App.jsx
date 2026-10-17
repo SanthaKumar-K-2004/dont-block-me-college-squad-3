@@ -1122,8 +1122,9 @@ const OnlineQuestionBanner = ({ src, query, alt, className = 'w-full h-full obje
           loading="lazy"
           decoding="async"
           referrerPolicy="no-referrer"
-          onError={() => {
-            if (photo?.url && imageSrc === photo.url) setFailedUrl(imageSrc);
+          onError={(event) => {
+            if (photo?.url && imageSrc === photo.url && safeFallback) setFailedUrl(imageSrc);
+            else event.currentTarget.style.opacity = '0';
           }}
           className={className}
         />
