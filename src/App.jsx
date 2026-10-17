@@ -72,8 +72,10 @@ class SoundEngine {
       osc.type = type;
       osc.frequency.setValueAtTime(freq, startTime);
 
-      gain.gain.setValueAtTime(vol, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+      const peak = Math.min(Math.max(vol, 0.005), 0.045);
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(peak, startTime + Math.min(0.018, duration / 3));
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
@@ -95,8 +97,8 @@ class SoundEngine {
   }
 
   dealbreaker() {
-    this.playTone(220, 'sawtooth', 0.12, 0, 0.12);
-    this.playTone(440, 'sawtooth', 0.15, 0.08, 0.12);
+    this.playTone(293.66, 'triangle', 0.09, 0, 0.07);
+    this.playTone(392, 'sine', 0.12, 0.065, 0.07);
   }
 
   correct(streak = 1) {
@@ -109,13 +111,13 @@ class SoundEngine {
   }
 
   wrong() {
-    this.playTone(185, 'sawtooth', 0.18, 0, 0.13);
-    this.playTone(135, 'sawtooth', 0.24, 0.1, 0.13);
+    this.playTone(196, 'triangle', 0.12, 0, 0.07);
+    this.playTone(146.83, 'sine', 0.16, 0.09, 0.06);
   }
 
   stampSlam() {
-    this.playTone(95, 'square', 0.22, 0, 0.22);
-    this.playTone(65, 'sawtooth', 0.28, 0.04, 0.2);
+    this.playTone(110, 'triangle', 0.16, 0, 0.08);
+    this.playTone(82.41, 'sine', 0.2, 0.045, 0.065);
   }
 
   fanfare() {
@@ -126,9 +128,9 @@ class SoundEngine {
   }
 
   blockedAlarm() {
-    const notes = [280, 190, 250, 140];
+    const notes = [293.66, 220, 261.63, 196];
     notes.forEach((n, idx) => {
-      this.playTone(n, 'sawtooth', 0.2, idx * 0.11, 0.15);
+      this.playTone(n, 'triangle', 0.14, idx * 0.12, 0.065);
     });
   }
 }
@@ -1443,6 +1445,7 @@ export default function App() {
     [INITIAL_DEMO_QUIZ.id]: INITIAL_DEMO_QUIZ
   });
   const [activeQuizId, setActiveQuizId] = useState(INITIAL_DEMO_QUIZ.id);
+  const [localStoreReady, setLocalStoreReady] = useState(false);
 
   // View Mode: 'create' | 'share' | 'play' | 'scoreboard'
   const [mode, setMode] = useState('create');
@@ -1581,6 +1584,59 @@ export default function App() {
   }, [mode, playerStep]);
 
   // ============================================================================
+  // Local persistence provides offline recovery and same-browser/tab sync.
+  // Cross-device sync requires valid Firebase client configuration and Firestore rules.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem('dont-block-me:quizzes:v1');
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && typeof saved === 'object') {
+          setQuizzesMap((prev) => ({ ...prev, ...saved }));
+        }
+      }
+    } catch (err) {
+      console.warn('Local quiz restore skipped:', err);
+    } finally {
+      setLocalStoreReady(true);
+    }
+
+    const handleStorage = (event) => {
+      if (event.key !== 'dont-block-me:quizzes:v1' || !event.newValue) return;
+      try {
+        const incoming = JSON.parse(event.newValue);
+        if (incoming && typeof incoming === 'object') {
+          setQuizzesMap((prev) => ({ ...prev, ...incoming }));
+        }
+      } catch (err) {
+        console.warn('Cross-tab quiz sync skipped:', err);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  useEffect(() => {
+    if (!localStoreReady) return;
+    try {
+      window.localStorage.setItem('dont-block-me:quizzes:v1', JSON.stringify(quizzesMap));
+    } catch (err) {
+      console.warn('Local quiz save skipped (storage may be full):', err);
+    }
+  }, [quizzesMap, localStoreReady]);
+
+  // Resolve shared quiz links on the deployed app origin.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const linkedId = params.get('id');
+    if (!linkedId) return;
+    const normalizedId = linkedId.trim().slice(0, 32);
+    if (!normalizedId) return;
+    setActiveQuizId(normalizedId);
+    setMode('share');
+  }, []);
+
   // FIREBASE AUTH & REAL-TIME SYNC
   // ============================================================================
   useEffect(() => {
@@ -1749,7 +1805,7 @@ export default function App() {
         img: o.img,
         gradient: 'from-purple-600 to-indigo-900'
       })),
-      correctOptionId: 'a',
+      correctOptionId: null,
       isDealbreaker: cQuestions[currentQIndex].isDealbreaker
     };
     const updated = [...cQuestions];
@@ -1998,7 +2054,7 @@ export default function App() {
 
     await saveQuizToCloud(updatedQuiz);
     showToast(
-      `🔔 Live Squad Entry: ${chosen.name} scored ${score}/10 (${
+      `🔔 Live Squad Entry: ${chosen.name} scored ${score}/${activeQuiz.questions.length} (${
         isSafe ? 'APPROVED MACHAN ✅' : 'BLOCKED 🚫'
       })`,
       isSafe ? 'success' : 'error'
@@ -2267,7 +2323,9 @@ export default function App() {
     return list;
   }, [activeQuiz, boardFilter]);
 
-  const shareUrl = `https://block.youtest.me/find?id=${activeQuiz.id}&q=${activeQuiz.pronoun}`;
+  const shareUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/?id=${encodeURIComponent(activeQuiz.id)}&q=${encodeURIComponent(activeQuiz.pronoun || 'm')}`
+    : `/?id=${encodeURIComponent(activeQuiz.id)}&q=${encodeURIComponent(activeQuiz.pronoun || 'm')}`;
 
   // ============================================================================
   // RENDER APPLICATION
