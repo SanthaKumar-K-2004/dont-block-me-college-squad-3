@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeAttempts, isValidAttempt } from '../src/attempts.js';
+import { mergeAttempts, mergeQuizSnapshots, isValidAttempt } from '../src/attempts.js';
 
 test('mergeAttempts deduplicates by ID, prefers later groups, and sorts newest first', () => {
   const old = { id: 'a', score: 2, timestamp: 10 };
