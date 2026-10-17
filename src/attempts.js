@@ -24,3 +24,25 @@ export function isValidAttempt(attempt, questionCount) {
   if (Object.keys(attempt.answers).length > attempt.total) return false;
   return typeof attempt.missedDealbreaker === 'boolean';
 }
+
+
+// Merge cloud quiz snapshots without dropping device-only creator PINs or local attempts.
+// Attempts live in their own subcollection, so an empty parent snapshot must not erase them.
+export function mergeQuizSnapshots(localQuizzes, remoteQuizzes) {
+  const next = { ...(localQuizzes && typeof localQuizzes === 'object' ? localQuizzes : {}) };
+  if (!remoteQuizzes || typeof remoteQuizzes !== 'object' || Array.isArray(remoteQuizzes)) return next;
+
+  for (const [quizId, remote] of Object.entries(remoteQuizzes)) {
+    if (!remote || typeof remote !== 'object' || Array.isArray(remote)) continue;
+    const local = next[quizId];
+    next[quizId] = {
+      ...(local && typeof local === 'object' ? local : {}),
+      ...remote,
+      // The PIN is intentionally never uploaded. Keep it only on the creator's device.
+      ...(typeof local?.pin === 'string' && local.pin ? { pin: local.pin } : {}),
+      // The cloud stores each attempt separately; union both sources by stable ID.
+      attempts: mergeAttempts(local?.attempts || [], remote.attempts || [])
+    };
+  }
+  return next;
+}
