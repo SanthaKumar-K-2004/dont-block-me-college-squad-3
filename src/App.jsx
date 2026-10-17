@@ -1642,6 +1642,7 @@ export default function App() {
   const answerLockRef = useRef(false);
   const cloudQuizIdsRef = useRef(new Set());
   // Track confirmed remote attempt IDs separately from local attempts so failed writes can retry.
+  const cloudAttemptIdsRef = useRef(new Map());
   const [latestAttempt, setLatestAttempt] = useState(null);
 
   // Combo Streak & Live Timer
