@@ -2390,12 +2390,10 @@ export default function App() {
               aria-pressed={musicOn}
               onClick={() => {
                 sfx.click();
-                setMusicOn((current) => {
-                  const next = !current;
-                  if (next) sfx.startMusic();
-                  else sfx.stopMusic();
-                  return next;
-                });
+                const next = !musicOn;
+                setMusicOn(next);
+                if (next) sfx.startMusic();
+                else sfx.stopMusic();
               }}
               className={`p-2 rounded-xl border-[2.5px] border-[#111] shadow-[3px_3px_0px_#111] ${musicOn ? 'bg-[#B8FF01]' : 'bg-white'}`}
               title={musicOn ? 'Background music on' : 'Background music off'}
