@@ -1639,6 +1639,7 @@ export default function App() {
   const [pAnswers, setPAnswers] = useState({});
   const [lastSelectedOption, setLastSelectedOption] = useState(null);
   const answerLockRef = useRef(false);
+  const cloudQuizIdsRef = useRef(new Set());
   const [latestAttempt, setLatestAttempt] = useState(null);
 
   // Combo Streak & Live Timer
@@ -1886,6 +1887,7 @@ export default function App() {
           }
         });
         if (Object.keys(fetched).length > 0) {
+          Object.keys(fetched).forEach((quizId) => cloudQuizIdsRef.current.add(quizId));
           setQuizzesMap((prev) => ({ ...prev, ...fetched }));
         }
         setCloudSnapshotReady(true);
@@ -1962,13 +1964,15 @@ export default function App() {
 
     try {
       const quizRef = doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', quizObj.id);
-      if (!previousQuiz) {
-        // Quiz metadata is immutable after publishing. Do not publish the creator PIN.
+      if (!cloudQuizIdsRef.current.has(quizObj.id)) {
+        // Sync local-only quizzes when cloud becomes available. Quiz metadata is immutable
+        // after publish. Do not publish the creator PIN.
         const { attempts: _attempts, pin: _pin, ...publicQuiz } = quizObj;
         await setDoc(quizRef, {
           ...publicQuiz,
           questions: JSON.stringify(publicQuiz.questions)
         });
+        cloudQuizIdsRef.current.add(quizObj.id);
       }
 
       // Each attempt has a stable document ID: concurrent players cannot overwrite
