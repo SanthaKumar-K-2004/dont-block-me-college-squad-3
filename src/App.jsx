@@ -1985,83 +1985,6 @@ export default function App() {
   };
 
   // ============================================================================
-  const handleSimulateFriendAttempt = async () => {
-    const sampleSquad = [
-      { name: 'Vignesh (Last Bench) 🔥', av: 'av2', rel: 'squad', acc: 0.9 },
-      { name: 'Harish_R15 🏍️', av: 'av8', rel: 'hostel', acc: 0.8 },
-      { name: 'Santhosh (1-Night Pro)', av: 'av5', rel: 'bestie', acc: 0.45 },
-      { name: 'Divya (IT Dept) 👀', av: 'av6', rel: 'crush', acc: 0.75 },
-      { name: 'Lokesh (Tea Master) ☕', av: 'av4', rel: 'vibes', acc: 0.85 },
-      { name: 'Rakesh (Fake Snake 🐍)', av: 'av3', rel: 'squad', acc: 0.3 }
-    ];
-    const existing = new Set((activeQuiz.attempts || []).map((a) => a.friendName));
-    const avail = sampleSquad.filter((f) => !existing.has(f.name));
-    const chosen =
-      avail.length > 0
-        ? avail[Math.floor(Math.random() * avail.length)]
-        : {
-            name: `Machan_${Math.floor(10 + Math.random() * 89)} ⚡`,
-            av: 'av1',
-            rel: 'squad',
-            acc: Math.random() * 0.55 + 0.4
-          };
-
-    const simulatedAnswers = {};
-    let score = 0;
-    let missedDealbreaker = false;
-    let streak = 0;
-    let maxStreak = 0;
-
-    activeQuiz.questions.forEach((q) => {
-      const hit = Math.random() < chosen.acc;
-      if (hit) {
-        simulatedAnswers[q.id] = q.correctOptionId;
-        score += 1;
-        streak += 1;
-        maxStreak = Math.max(maxStreak, streak);
-      } else {
-        streak = 0;
-        const wrongOpts = q.options.filter((o) => o.id !== q.correctOptionId);
-        const pick = wrongOpts[Math.floor(Math.random() * wrongOpts.length)];
-        simulatedAnswers[q.id] = pick ? pick.id : 'b';
-        if (q.isDealbreaker) missedDealbreaker = true;
-      }
-    });
-
-    const newAttempt = {
-      id: 'sim_' + Date.now(),
-      friendName: chosen.name,
-      avatarId: chosen.av,
-      relationshipId: chosen.rel,
-      score,
-      total: activeQuiz.questions.length,
-      avgTimeSec: +(Math.random() * 3.5 + 2.5).toFixed(1),
-      maxStreak,
-      xpEarned: score * 125 + maxStreak * 30,
-      missedDealbreaker,
-      answers: simulatedAnswers,
-      timestamp: Date.now()
-    };
-
-    const updatedQuiz = {
-      ...activeQuiz,
-      attempts: [newAttempt, ...(activeQuiz.attempts || [])]
-    };
-
-    const isSafe = score >= activeQuiz.passScore && !missedDealbreaker;
-    if (isSafe) sfx.correct(3);
-    else sfx.dealbreaker();
-
-    await saveQuizToCloud(updatedQuiz);
-    showToast(
-      `🔔 Live Squad Entry: ${chosen.name} scored ${score}/${activeQuiz.questions.length} (${
-        isSafe ? 'APPROVED MACHAN ✅' : 'BLOCKED 🚫'
-      })`,
-      isSafe ? 'success' : 'error'
-    );
-  };
-
-  // ============================================================================
   // UPGRADED HTML5 CANVAS RECEIPT GENERATOR (WITH RADAR SUMMARY & STAMP)
   // ============================================================================
   useEffect(() => {
@@ -3493,12 +3416,7 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={handleSimulateFriendAttempt}
-                    className="px-4 py-2 rounded-xl bg-[#00E5FF] border-2 border-[#111] shadow-[3px_3px_0px_#111] font-black text-xs flex items-center gap-1.5"
-                  >
-                    <UserPlus className="w-4 h-4" /> + Simulate Squad Friend
-                  </button>
+
 
                   {isOwnerUnlocked ? (
                     <span className="px-3.5 py-2 rounded-xl bg-[#B8FF01] border-2 border-[#111] font-black text-xs flex items-center gap-1.5">
