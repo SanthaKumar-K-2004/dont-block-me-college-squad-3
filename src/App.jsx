@@ -154,35 +154,35 @@ const QUESTION_POOL = [
         id: 'a',
         tag: 'THALAPATHY VIBE',
         emoji: '🔥',
-        en: 'Thalapathy Vijay (Mass & Dance Entertainer)',
-        desi: 'தளபதி விஜய் (தரமான மாஸ் & டான்ஸ்)',
+        en: 'Thalapathy Vijay — mass action, dance and first-day-first-show energy',
+        desi: 'தளபதி விஜய் — மாஸ் ஆக்ஷன், டான்ஸ், FDFS கொண்டாட்டம்',
         img: '',
         gradient: 'from-amber-500 to-red-600'
       },
       {
         id: 'b',
-        tag: 'THALA / SUPERSTAR',
+        tag: 'THALA AJITH',
         emoji: '😎',
-        en: 'Thala Ajith / Rajini (Pure Swag & Gangster Style)',
-        desi: 'தல அஜித் / தலைவர் ரஜினி (மங்காத்தா ஸ்டைல்)',
+        en: 'Ajith Kumar — Mankatha swagger, stylish action and bike-racing vibe',
+        desi: 'அஜித் குமார் — மங்காத்தா ஸ்வாக், ஸ்டைலிஷ் ஆக்ஷன், பைக் ரேசிங் வைப்',
         img: '',
         gradient: 'from-slate-800 to-red-700'
       },
       {
         id: 'c',
-        tag: 'ROLEX / VIKRAM',
+        tag: 'SURIYA',
         emoji: '🦁',
-        en: 'Suriya / Kamal / Vikram (Intense Acting & Action)',
-        desi: 'சூர்யா / விக்ரம் / கமல் (மிரட்டல் நடிப்பு & ரோலக்ஸ் வைப்)',
+        en: 'Suriya — Singam energy, versatile acting and emotional roles',
+        desi: 'சூர்யா — சிங்கம் எனர்ஜி, வித்தியாசமான நடிப்பு, எமோஷனல் ரோல்ஸ்',
         img: '',
         gradient: 'from-purple-700 to-indigo-900'
       },
       {
         id: 'd',
-        tag: 'NEXT DOOR BOY',
+        tag: 'SIVAKARTHIKEYAN',
         emoji: '🎭',
-        en: 'Dhanush / Sivakarthikeyan (Relatable Boy & Comedy)',
-        desi: 'தனுஷ் / சிவகார்த்திகேயன் (பக்கத்து வீட்டு பையன் வைப்)',
+        en: 'Sivakarthikeyan — relatable comedy, family entertainers and feel-good roles',
+        desi: 'சிவகார்த்திகேயன் — காமெடி, ஃபேமிலி எண்டர்டெய்னர், ரிலேட்டபிள் வைப்',
         img: '',
         gradient: 'from-emerald-500 to-teal-700'
       }
@@ -207,28 +207,28 @@ const QUESTION_POOL = [
       },
       {
         id: 'b',
-        tag: 'CHUTTI TV LEGEND',
+        tag: 'BEN 10',
         emoji: '🐉',
-        en: 'Jackie Chan Adventures / Ben 10 (Action Legend)',
-        desi: 'ஜாக்கி சான் மந்திர கற்கள் / பென் 10 (சுட்டி டிவி லெஜண்ட்)',
+        en: 'Ben 10 — alien transformations, Omnitrix gadgets and action adventures',
+        desi: 'பென் 10 — ஏலியன் டிரான்ஸ்ஃபர்மேஷன், ஓம்னிட்ரிக்ஸ் கேட்ஜெட்ஸ், ஆக்ஷன்',
         img: '',
         gradient: 'from-green-500 to-emerald-800'
       },
       {
         id: 'c',
-        tag: 'GADGET KING',
+        tag: 'DORAEMON',
         emoji: '🔔',
-        en: 'Doraemon / Mr. Bean (Time Machine & Chill)',
-        desi: 'டோரேமான் / மிஸ்டர் பீன் (கேட்ஜெட் கிங்)',
+        en: 'Doraemon — futuristic gadgets, Anywhere Door and time-travel fun',
+        desi: 'டோரேமான் — எதிர்கால கேட்ஜெட்ஸ், எங்கேயும் கதவு, டைம் டிராவல்',
         img: '',
         gradient: 'from-sky-400 to-blue-700'
       },
       {
         id: 'd',
-        tag: 'ANIME OTAKU',
+        tag: 'NARUTO',
         emoji: '🍥',
-        en: 'Naruto / One Piece / Dragon Ball Z (Pure Anime)',
-        desi: 'நருட்டோ / ஒன் பீஸ் / டிராகன் பால் Z (வெறித்தனமான அனிமே)',
+        en: 'Naruto — ninja battles, determination and unforgettable squad bonds',
+        desi: 'நருடோ — நிஞ்ஜா சண்டை, விடாமுயற்சி, மறக்க முடியாத நண்பர்கள்',
         img: '',
         gradient: 'from-orange-500 to-rose-700'
       }
@@ -2242,16 +2242,21 @@ export default function App() {
 
   const filteredAttempts = useMemo(() => {
     const list = activeQuiz.attempts || [];
+    let filtered = list;
     if (boardFilter === 'safe') {
-      return list.filter((a) => a.score >= activeQuiz.passScore && !a.missedDealbreaker);
+      filtered = list.filter((a) => a.score >= activeQuiz.passScore && !a.missedDealbreaker);
+    } else if (boardFilter === 'blocked') {
+      filtered = list.filter((a) => a.score < activeQuiz.passScore || a.missedDealbreaker);
+    } else if (boardFilter === 'dealbreaker') {
+      filtered = list.filter((a) => a.missedDealbreaker);
     }
-    if (boardFilter === 'blocked') {
-      return list.filter((a) => a.score < activeQuiz.passScore || a.missedDealbreaker);
-    }
-    if (boardFilter === 'dealbreaker') {
-      return list.filter((a) => a.missedDealbreaker);
-    }
-    return list;
+    // Rank actual players by score, then XP, then speed. Never insert synthetic entries.
+    return [...filtered].sort((a, b) =>
+      (Number(b.score) || 0) - (Number(a.score) || 0) ||
+      (Number(b.xpEarned) || 0) - (Number(a.xpEarned) || 0) ||
+      (Number(a.avgTimeSec ?? Infinity)) - (Number(b.avgTimeSec ?? Infinity)) ||
+      (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0)
+    );
   }, [activeQuiz, boardFilter]);
 
   const shareUrl = typeof window !== 'undefined'
