@@ -28,11 +28,14 @@ import {
 let app = null;
 let auth = null;
 let db = null;
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'dont-block-me-college-pro';
+const appId = (typeof __app_id !== 'undefined' && __app_id) || import.meta.env?.VITE_FIREBASE_APP_ID || 'dont-block-me-college-pro';
 
 try {
-  if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-    const firebaseConfig = JSON.parse(__firebase_config);
+  const injectedConfig = typeof __firebase_config !== 'undefined' ? __firebase_config : '';
+  const envConfig = import.meta.env?.VITE_FIREBASE_CONFIG || '';
+  const configText = injectedConfig || envConfig;
+  if (configText) {
+    const firebaseConfig = typeof configText === 'string' ? JSON.parse(configText) : configText;
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
@@ -1703,6 +1706,10 @@ export default function App() {
         });
       } catch (e) {
         console.warn('Cloud save skipped:', e);
+        showToast(
+          'Saved on this device, but cloud sync failed. Check Firebase config and Firestore rules.',
+          'error'
+        );
       }
     }
   };
@@ -2119,7 +2126,7 @@ export default function App() {
     ctx.fillText("DON'T BLOCK ME! // COLLEGE SQUAD RECEIPT", W / 2, 78);
     ctx.font = 'bold 19px monospace';
     ctx.fillText(
-      `HOST: ${activeQuiz.creatorName.toUpperCase()}  |  QUIZ #${activeQuiz.id}  |  PASS: ${activeQuiz.passScore}/10`,
+      `HOST: ${activeQuiz.creatorName.toUpperCase()}  |  QUIZ #${activeQuiz.id}  |  PASS: ${activeQuiz.passScore}/${activeQuiz.questions.length}`,
       W / 2,
       118
     );
@@ -2148,7 +2155,7 @@ export default function App() {
     ctx.fillStyle = '#111111';
     ctx.textAlign = 'center';
     ctx.font = '900 44px sans-serif';
-    ctx.fillText(`${latestAttempt.score}/10`, W - 139, 218);
+    ctx.fillText(`${latestAttempt.score}/${latestAttempt.total || activeQuiz.questions.length}`, W - 139, 218);
     ctx.font = 'bold 13px monospace';
     ctx.fillText(`${latestAttempt.xpEarned || 850} XP EARNED`, W - 139, 245);
 
@@ -2379,7 +2386,7 @@ export default function App() {
               src="/squad-logo.svg"
               alt="Don't Block Me College Squad logo"
               width="48"
-              height="48"
+              height="48" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
               className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl border-[3px] border-[#111] shadow-[3px_3px_0px_#111] group-hover:-rotate-6 transition-transform"
             />
             <div>
@@ -2529,7 +2536,7 @@ export default function App() {
               <div className="flex items-center gap-3.5">
                 <img
                   src={AVATAR_BADGES[0].img}
-                  alt="Demo Host"
+                  alt="Demo Host" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
                   className="w-14 h-14 rounded-2xl object-cover border-[3px] border-[#111] shadow-[3px_3px_0px_#111] shrink-0"
                 />
                 <div>
@@ -2666,7 +2673,7 @@ export default function App() {
                             <div className="h-20 w-full bg-neutral-900 relative">
                               <img
                                 src={av.img}
-                                alt={av.label}
+                                alt={av.label} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                               />
                               <span className="absolute bottom-1 right-1 text-base bg-white rounded-md px-1 border border-[#111]">
@@ -2850,7 +2857,7 @@ export default function App() {
                       <div className="relative h-28 sm:h-36 rounded-2xl border-[3px] border-[#111] overflow-hidden mb-4 bg-neutral-900">
                         <img
                           src={activeQ.bannerImg}
-                          alt={activeQ.category}
+                          alt={activeQ.category} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
                           className="w-full h-full object-cover opacity-65"
                         />
                         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-transparent p-4 flex flex-col justify-between">
@@ -2996,7 +3003,7 @@ export default function App() {
               <div className="max-w-xl rounded-2xl bg-[#111] text-white border-[3px] border-[#111] p-4 shadow-[5px_5px_0px_#FF3366] flex items-center gap-4">
                 <img
                   src={activeQuiz.customAvatarUrl || activeAvatar.img}
-                  alt={activeQuiz.creatorName}
+                  alt={activeQuiz.creatorName} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
                   className="w-20 h-20 rounded-2xl object-cover border-2 border-[#B8FF01] shrink-0"
                 />
                 <div className="min-w-0">
@@ -3063,7 +3070,7 @@ export default function App() {
                   <div className="relative mb-3">
                     <img
                       src={activeQuiz.customAvatarUrl || activeAvatar.img}
-                      alt={activeQuiz.creatorName}
+                      alt={activeQuiz.creatorName} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
                       className="w-24 h-24 rounded-3xl object-cover border-[3px] border-[#111] shadow-[4px_4px_0px_#111]"
                     />
                     <span className="absolute -bottom-2 -right-2 w-9 h-9 rounded-xl bg-[#B8FF01] border-2 border-[#111] flex items-center justify-center text-lg">
@@ -3121,7 +3128,7 @@ export default function App() {
                               : 'opacity-75 hover:opacity-100'
                           }`}
                         >
-                          <img src={av.img} alt={av.label} className="w-full h-12 object-cover" />
+                          <img src={av.img} alt={av.label} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }} className="w-full h-12 object-cover" />
                         </button>
                       ))}
                     </div>
@@ -3240,7 +3247,7 @@ export default function App() {
                       <div className="relative h-28 sm:h-36 rounded-2xl border-[3px] border-[#111] overflow-hidden mb-5 bg-neutral-900">
                         <img
                           src={q.bannerImg}
-                          alt={q.category}
+                          alt={q.category} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
                           className="w-full h-full object-cover opacity-65"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-4 flex flex-col justify-end">
@@ -3471,7 +3478,7 @@ export default function App() {
                                 >
                                   <img
                                     src={(correctOpt || q.options[0]).img}
-                                    alt={q.category}
+                                    alt={q.category} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
                                     className="w-16 h-16 rounded-xl object-cover border-2 border-[#111] shrink-0"
                                   />
                                   <div className="flex-1 min-w-0">
@@ -3526,7 +3533,7 @@ export default function App() {
                 <div className="flex items-center gap-3.5">
                   <img
                     src={activeQuiz.customAvatarUrl || activeAvatar.img}
-                    alt={activeQuiz.creatorName}
+                    alt={activeQuiz.creatorName} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
                     className="w-16 h-16 rounded-2xl object-cover border-[3px] border-[#111] shadow-[3px_3px_0px_#111]"
                   />
                   <div>
@@ -3708,7 +3715,7 @@ export default function App() {
                         <div className="relative">
                           <img
                             src={avObj.img}
-                            alt={att.friendName}
+                            alt={att.friendName} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
                             className="w-12 h-12 rounded-2xl object-cover border-2 border-[#111]"
                           />
                           <span
@@ -3885,7 +3892,7 @@ export default function App() {
                   >
                     <img
                       src={(pickedOpt || q.options[0]).img}
-                      alt=""
+                      alt="" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
                       className="w-12 h-12 rounded-lg object-cover border border-[#111] shrink-0"
                     />
                     <div className="flex-1">
