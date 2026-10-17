@@ -1,0 +1,3972 @@
+import './app.css';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  Sparkles, Volume2, VolumeX, Share2, Copy, RefreshCw, PlusCircle,
+  AlertTriangle, Trash2, Eye, Lock, Unlock, Trophy, Flame, ArrowRight,
+  ArrowLeft, Download, Play, Zap, MessageCircle, Sliders, CheckCircle2,
+  UserPlus, Hash, Globe, Edit3, X, Timer, Award, BarChart3, Compass,
+  Camera, Image as ImageIcon, ShieldCheck, ShieldAlert, Star
+} from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import {
+  getAuth,
+  signInAnonymously,
+  signInWithCustomToken,
+  onAuthStateChanged
+} from 'firebase/auth';
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  onSnapshot,
+  collection
+} from 'firebase/firestore';
+
+// ============================================================================
+// 1. FIREBASE INITIALIZATION (WITH ZERO-HANG INSTANT FALLBACK)
+// ============================================================================
+let app = null;
+let auth = null;
+let db = null;
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'dont-block-me-college-pro';
+
+try {
+  if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+    const firebaseConfig = JSON.parse(__firebase_config);
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+  }
+} catch (err) {
+  console.warn('Running in instant local hybrid mode:', err);
+}
+
+// ============================================================================
+// 2. WEB AUDIO API SYNTHESIZER (ARCADE + COMBO STREAK SOUND ENGINE)
+// ============================================================================
+class SoundEngine {
+  constructor() {
+    this.ctx = null;
+    this.muted = false;
+  }
+
+  init() {
+    if (!this.ctx && typeof window !== 'undefined') {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  playTone(freq, type = 'sine', duration = 0.1, delay = 0, vol = 0.12) {
+    if (this.muted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const startTime = this.ctx.currentTime + delay;
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(vol, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    } catch (e) {
+      // Ignore audio errors on restricted devices
+    }
+  }
+
+  click() {
+    this.playTone(580, 'triangle', 0.05, 0, 0.1);
+  }
+
+  swap() {
+    this.playTone(320, 'sine', 0.07, 0, 0.1);
+    this.playTone(540, 'triangle', 0.09, 0.05, 0.12);
+  }
+
+  dealbreaker() {
+    this.playTone(220, 'sawtooth', 0.12, 0, 0.12);
+    this.playTone(440, 'sawtooth', 0.15, 0.08, 0.12);
+  }
+
+  correct(streak = 1) {
+    const base = 523.25 + Math.min(streak * 45, 300);
+    this.playTone(base, 'triangle', 0.1, 0, 0.15);
+    this.playTone(base * 1.25, 'triangle', 0.16, 0.07, 0.16);
+    if (streak >= 3) {
+      this.playTone(base * 1.5, 'sine', 0.2, 0.14, 0.16);
+    }
+  }
+
+  wrong() {
+    this.playTone(185, 'sawtooth', 0.18, 0, 0.13);
+    this.playTone(135, 'sawtooth', 0.24, 0.1, 0.13);
+  }
+
+  stampSlam() {
+    this.playTone(95, 'square', 0.22, 0, 0.22);
+    this.playTone(65, 'sawtooth', 0.28, 0.04, 0.2);
+  }
+
+  fanfare() {
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((n, idx) => {
+      this.playTone(n, 'triangle', 0.18, idx * 0.08, 0.15);
+    });
+  }
+
+  blockedAlarm() {
+    const notes = [280, 190, 250, 140];
+    notes.forEach((n, idx) => {
+      this.playTone(n, 'sawtooth', 0.2, idx * 0.11, 0.15);
+    });
+  }
+}
+
+const sfx = new SoundEngine();
+
+// ============================================================================
+// 3. COLLEGE BOYS & SQUAD QUESTION BANK (14 RELATABLE QUESTIONS WITH REAL PHOTOS)
+// ============================================================================
+// Axes for Radar Chart:
+// 'cinema' (Cinema & Cartoon), 'food' (Food & Tea Sync), 'college' (College Survival),
+// 'squad' (Squad Loyalty), 'vibe' (Vibe & Music Match)
+const QUESTION_POOL = [
+  {
+    id: 'q1',
+    axis: 'cinema',
+    category: 'Cinema & Hero Vibe 🎬',
+    bannerImg: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=80',
+    en: "Who is {name}'s all-time favorite Hero / FDFS Cinema Vibe?",
+    desi: "{name}-oda ஆல்-டைம் ஃபேவரைட் ஹீரோ & தியேட்டர் வைப் யார்?",
+    options: [
+      {
+        id: 'a',
+        tag: 'THALAPATHY VIBE',
+        emoji: '🔥',
+        en: 'Thalapathy Vijay (Mass & Dance Entertainer)',
+        desi: 'தளபதி விஜய் (தரமான மாஸ் & டான்ஸ்)',
+        img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-amber-500 to-red-600'
+      },
+      {
+        id: 'b',
+        tag: 'THALA / SUPERSTAR',
+        emoji: '😎',
+        en: 'Thala Ajith / Rajini (Pure Swag & Gangster Style)',
+        desi: 'தல அஜித் / தலைவர் ரஜினி (மங்காத்தா ஸ்டைல்)',
+        img: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-slate-800 to-red-700'
+      },
+      {
+        id: 'c',
+        tag: 'ROLEX / VIKRAM',
+        emoji: '🦁',
+        en: 'Suriya / Kamal / Vikram (Intense Acting & Action)',
+        desi: 'சூர்யா / விக்ரம் / கமல் (மிரட்டல் நடிப்பு & ரோலக்ஸ் வைப்)',
+        img: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-purple-700 to-indigo-900'
+      },
+      {
+        id: 'd',
+        tag: 'NEXT DOOR BOY',
+        emoji: '🎭',
+        en: 'Dhanush / Sivakarthikeyan (Relatable Boy & Comedy)',
+        desi: 'தனுஷ் / சிவகார்த்திகேயன் (பக்கத்து வீட்டு பையன் வைப்)',
+        img: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-emerald-500 to-teal-700'
+      }
+    ]
+  },
+  {
+    id: 'q2',
+    axis: 'cinema',
+    category: 'Childhood Cartoon & Anime 📺',
+    bannerImg: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=900&q=80',
+    en: "Which Childhood Cartoon or Anime can {name} still watch all day?",
+    desi: "{name} சின்ன வயசுல இருந்து இப்ப வரைக்கும் விரும்பி பாக்குற கார்ட்டூன் எது?",
+    options: [
+      {
+        id: 'a',
+        tag: 'SHINCHAN GANG',
+        emoji: '😜',
+        en: 'Shinchan (Non-stop Comedy & Trouble Maker)',
+        desi: 'ஷின்சான் (சேட்டை & குலுங்க குலுங்க சிரிப்பு)',
+        img: 'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-yellow-400 to-red-500'
+      },
+      {
+        id: 'b',
+        tag: 'CHUTTI TV LEGEND',
+        emoji: '🐉',
+        en: 'Jackie Chan Adventures / Ben 10 (Action Legend)',
+        desi: 'ஜாக்கி சான் மந்திர கற்கள் / பென் 10 (சுட்டி டிவி லெஜண்ட்)',
+        img: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-green-500 to-emerald-800'
+      },
+      {
+        id: 'c',
+        tag: 'GADGET KING',
+        emoji: '🔔',
+        en: 'Doraemon / Mr. Bean (Time Machine & Chill)',
+        desi: 'டோரேமான் / மிஸ்டர் பீன் (கேட்ஜெட் கிங்)',
+        img: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-sky-400 to-blue-700'
+      },
+      {
+        id: 'd',
+        tag: 'ANIME OTAKU',
+        emoji: '🍥',
+        en: 'Naruto / One Piece / Dragon Ball Z (Pure Anime)',
+        desi: 'நருட்டோ / ஒன் பீஸ் / டிராகன் பால் Z (வெறித்தனமான அனிமே)',
+        img: 'https://images.unsplash.com/photo-1541562232579-512a21360020?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-orange-500 to-rose-700'
+      }
+    ]
+  },
+  {
+    id: 'q3',
+    axis: 'food',
+    category: 'Ultimate Food Craving 🍗',
+    bannerImg: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=900&q=80',
+    en: "What is {name}'s #1 unbeatable food craving with the gang?",
+    desi: "{name}-கிட்ட 'இன்னைக்கு என்ன சாப்பிடலாம்?'னு கேட்டா உடனே சொல்ற உணவு எது?",
+    options: [
+      {
+        id: 'a',
+        tag: 'BIRYANI VERIYAN',
+        emoji: '🍛',
+        en: 'Hot Dum Biryani with Leg Piece & Bread Halwa',
+        desi: 'சுடச்சுட தம் பிரியாணி + லெக் பீஸ் & பிரெட் அல்வா',
+        img: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-amber-600 to-orange-800'
+      },
+      {
+        id: 'b',
+        tag: 'SHAWARMA KING',
+        emoji: '🌯',
+        en: 'Loaded Mexican Plate Shawarma with Extra Mayo',
+        desi: 'எக்ஸ்ட்ரா மயோனைஸ் போட்ட பிளேட் ஷவர்மா & கிரில் சிக்கன்',
+        img: 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-red-500 to-amber-600'
+      },
+      {
+        id: 'c',
+        tag: 'PAROTTA SALNA',
+        emoji: '🥘',
+        en: 'Night Kothu Parotta & Kalakki with Spicy Salna',
+        desi: 'நைட் கடை கொத்து பரோட்டா + நல்ல காரமான சால்னா & கலக்கி',
+        img: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-orange-500 to-yellow-700'
+      },
+      {
+        id: 'd',
+        tag: 'HOSTEL MAGGI',
+        emoji: '🍜',
+        en: '2-AM Masala Maggi / Fried Rice & Burger',
+        desi: 'நைட் 2 மணி ஹாஸ்டல் மசாலா மேகி / ஃப்ரைடு ரைஸ்',
+        img: 'https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-yellow-500 to-red-500'
+      }
+    ]
+  },
+  {
+    id: 'q4',
+    axis: 'college',
+    category: 'College Subject & Exam Reality 📚',
+    bannerImg: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=900&q=80',
+    en: "What is {name}'s actual College Subject & Semester Exam reality?",
+    desi: "காலேஜ் கிளாஸ் & செமஸ்டர் எக்ஸாம்ல {name} உண்மையிலேயே எந்த ரகம்?",
+    options: [
+      {
+        id: 'a',
+        tag: '1-NIGHT BATSMAN',
+        emoji: '🌙',
+        en: 'Opens book 1-Night before exam & asks Important Qs',
+        desi: 'எக்ஸாமுக்கு முந்தின நைட் மட்டும் முக்கிய கேள்வி கேட்டு படிக்கிறது',
+        img: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-indigo-600 to-slate-900'
+      },
+      {
+        id: 'b',
+        tag: 'LAB RECORD XEROX',
+        emoji: '📝',
+        en: 'Last-minute Lab Record writing & Practical Viva survivor',
+        desi: 'கடைசி நேரத்துல லேப் ரெக்கார்டு எழுதி கையெழுத்து வாங்குறது',
+        img: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-cyan-500 to-blue-700'
+      },
+      {
+        id: 'c',
+        tag: '75% ATTENDANCE PRO',
+        emoji: '🧮',
+        en: 'Calculates exact 75.1% attendance to take leave safely',
+        desi: 'கரெக்டா 75% அட்டெண்டன்ஸ் கணக்கு போட்டு லீவ் போடுற மாஸ்டர்',
+        img: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-emerald-500 to-green-800'
+      },
+      {
+        id: 'd',
+        tag: 'SECRET TOPPER',
+        emoji: '🤓',
+        en: 'Says "Bro I studied nothing" and scores 8.5+ CGPA',
+        desi: '"மச்சான் ஒண்ணுமே படிக்கலடா"னு சொல்லிட்டு பாஸ் ஆகுற ரகசிய டாப்பர்',
+        img: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-fuchsia-600 to-purple-800'
+      }
+    ]
+  },
+  {
+    id: 'q5',
+    axis: 'college',
+    category: 'Classroom Bench Spot 🪑',
+    bannerImg: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=900&q=80',
+    en: "Where will you always find {name} during a boring college lecture?",
+    desi: "காலேஜ்ல போர் அடிக்கிற கிளாஸ் நடக்கும்போது {name} எங்க இருப்பாங்க?",
+    options: [
+      {
+        id: 'a',
+        tag: 'LAST BENCH KING',
+        emoji: '😴',
+        en: 'Last Bench — Sleeping, mobile gaming & comment passing',
+        desi: 'லாஸ்ட் பெஞ்ச் — தூக்கம், போன் கேம் & கமெண்ட் அடிக்கிறது',
+        img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-rose-500 to-red-800'
+      },
+      {
+        id: 'b',
+        tag: 'WINDOW DAYDREAMER',
+        emoji: '🎧',
+        en: 'Window Seat — Looking outside & vibing to songs in head',
+        desi: 'ஜன்னல் ஓர சீட் — வேடிக்கை பார்த்துட்டு கனவு உலகத்துல மிதக்கிறது',
+        img: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-sky-500 to-indigo-700'
+      },
+      {
+        id: 'c',
+        tag: 'CANTEEN BUNKER',
+        emoji: '🏃‍♂️',
+        en: 'Not even in class — Bunking at Canteen or Ground!',
+        desi: 'கிளாஸ்லயே இருக்க மாட்டாங்க — கேண்டீன்ல பப்ஸ் சாப்பிட்டுட்டு இருப்பாங்க!',
+        img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-amber-500 to-orange-700'
+      },
+      {
+        id: 'd',
+        tag: 'SAFE MIDDLE BENCH',
+        emoji: '✌️',
+        en: 'Middle Bench — Acting innocent while using phone under desk',
+        desi: 'நடு பெஞ்ச் — நல்ல பிள்ளை மாதிரி உக்காந்து டெஸ்க் அடியில போன் நோண்டுறது',
+        img: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-teal-500 to-emerald-800'
+      }
+    ]
+  },
+  {
+    id: 'q6',
+    axis: 'food',
+    category: 'Tea Kadai & Break Combo ☕',
+    bannerImg: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=900&q=80',
+    en: "At the evening Tea Kadai hangout, what is {name}'s fixed order?",
+    desi: "ஈவினிங் டீ கடைக்கு போனா {name}-ஓட நிரந்தர ஆர்டர் என்ன?",
+    options: [
+      {
+        id: 'a',
+        tag: 'STRONG INJI TEA',
+        emoji: '☕',
+        en: 'Strong Ginger Tea + Hot Milagai Bajji / Samosa',
+        desi: 'நல்ல ஸ்ட்ராங் இஞ்சி டீ + சுடச்சுட மிளகாய் பஜ்ஜி / சமோசா',
+        img: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-amber-700 to-yellow-900'
+      },
+      {
+        id: 'b',
+        tag: 'COLD COFFEE / BOOST',
+        emoji: '🧋',
+        en: 'Cold Coffee / Boost + Bakery Egg/Veg Puff',
+        desi: 'கோல்டு காபி / பூஸ்ட் + பேக்கரி முட்டை பப்ஸ்',
+        img: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-stone-600 to-amber-900'
+      },
+      {
+        id: 'c',
+        tag: 'LEMON SODA CHILL',
+        emoji: '🍋',
+        en: 'Chilled Lemon Soda / Rose Milk / Badam Milk',
+        desi: 'ஜில்லுனு லெமன் சோடா / ரோஸ் மில்க் / பாதாம் பால்',
+        img: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-pink-500 to-rose-700'
+      },
+      {
+        id: 'd',
+        tag: 'FREE LOADER MACHAN',
+        emoji: '💸',
+        en: 'Eats everyone\'s snacks & says "Machan you pay today!"',
+        desi: 'மத்தவங்க பஜ்ஜியையும் சேர்த்து சாப்பிட்டுட்டு "மச்சான் நீ காசு குடு"னு சொல்றது',
+        img: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-lime-500 to-green-700'
+      }
+    ]
+  },
+  {
+    id: 'q7',
+    axis: 'squad',
+    category: 'Squad Gaming Night 🎮',
+    bannerImg: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80',
+    en: "When the boys hop on for a gaming session, what is {name}'s style?",
+    desi: "நண்பர்களோட கேம் ஆடும்போது {name} எந்த மாதிரி பிளேயர்?",
+    options: [
+      {
+        id: 'a',
+        tag: 'BGMI / FREE FIRE',
+        emoji: '🪂',
+        en: 'BGMI / Free Fire — Drops Pochinki, dies first & yells "Revive!"',
+        desi: 'BGMI / Free Fire — முதல்லயே நாக்காகிட்டு "மச்சான் ரிவைவ் பண்ணுடா!"னு கத்துறது',
+        img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-orange-600 to-red-900'
+      },
+      {
+        id: 'b',
+        tag: 'FIFA / CRICKET PRO',
+        emoji: '⚽',
+        en: 'FIFA / eFootball / Real Cricket 1v1 Champion',
+        desi: 'FIFA / eFootball / கிரிக்கெட் கேம்ல யாராலயும் ஜெயிக்க முடியாத ப்ரோ',
+        img: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-blue-600 to-indigo-900'
+      },
+      {
+        id: 'c',
+        tag: 'GTA V / PC GAMER',
+        emoji: '🚗',
+        en: 'GTA V / Valorant / Story Mode Open-World Explorer',
+        desi: 'GTA V / கார் ரேஸ் கேம்ல ஊரை சுத்தி வம்பு இழுக்கிறது',
+        img: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-purple-600 to-slate-900'
+      },
+      {
+        id: 'd',
+        tag: 'LUDO / MINI MILITIA',
+        emoji: '🎲',
+        en: 'Ludo King / Mini Militia / 8-Ball Pool Hostel Legend',
+        desi: 'லூடோ கிங் / மினி மிலிஷியா போட்டு கிளாஸ்லயே கும்பலா ஆடுறது',
+        img: 'https://images.unsplash.com/photo-1611996575749-79a3a250f948?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-emerald-500 to-teal-800'
+      }
+    ]
+  },
+  {
+    id: 'q8',
+    axis: 'cinema',
+    category: 'IPL & Cricket Loyalty 🏏',
+    bannerImg: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=900&q=80',
+    en: "During IPL & Cricket season, which side is {name} defending to death?",
+    desi: "IPL & கிரிக்கெட் சீசன் வந்தா {name} எந்த டீமுக்கு உயிரைக் கொடுப்பாங்க?",
+    options: [
+      {
+        id: 'a',
+        tag: 'CSK • WHISTLE PODU',
+        emoji: '🦁',
+        en: 'CSK & Thala Dhoni Forever (Yellow Army Whistle Podu!)',
+        desi: 'CSK & தல தோனி வெறியன் (எல்லோ ஆர்மி விசில் போடு!)',
+        img: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-yellow-400 to-amber-600'
+      },
+      {
+        id: 'b',
+        tag: 'RCB • KING KOHLI',
+        emoji: '👑',
+        en: 'RCB & King Virat Kohli (Ee Sala Cup Namde Loyalty!)',
+        desi: 'RCB & விராட் கோலி (கப் முக்கியம் இல்ல, லாயல்டி தான் முக்கியம்!)',
+        img: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-red-600 to-neutral-900'
+      },
+      {
+        id: 'c',
+        tag: 'MI • HITMAN SQUAD',
+        emoji: '💙',
+        en: 'Mumbai Indians & Rohit Sharma (Trophy Collectors)',
+        desi: 'மும்பை இந்தியன்ஸ் & ரோஹித் சர்மா (சாம்பியன்ஸ் வைப்)',
+        img: 'https://images.unsplash.com/photo-1508344928928-7165b67de128?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-blue-500 to-blue-900'
+      },
+      {
+        id: 'd',
+        tag: 'SNACK SPECTATOR',
+        emoji: '🍿',
+        en: 'Only watches India vs Pakistan or checks score on Google',
+        desi: 'இந்தியா - பாகிஸ்தான் மேட்ச் மட்டும் பாக்குறது (இல்லன்னா கூகுள் ஸ்கோர்)',
+        img: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-teal-500 to-slate-800'
+      }
+    ]
+  },
+  {
+    id: 'q9',
+    axis: 'vibe',
+    category: 'Music Director & Earphone Vibe 🎧',
+    bannerImg: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=900&q=80',
+    en: "When {name} plugs in earphones on the college bus, whose playlist is playing?",
+    desi: "பஸ்ல போகும்போது {name} ஹெட்செட் மாட்டுனா யார் பாட்டு ஓடும்?",
+    options: [
+      {
+        id: 'a',
+        tag: 'U1 DRUGS • YUVAN',
+        emoji: '🌙',
+        en: 'Yuvan Shankar Raja (Late Night Feeling & BGM King)',
+        desi: 'யுவன் சங்கர் ராஜா (U1 மியூசிக் & நைட் ஃபீலிங் பாட்டு)',
+        img: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-purple-600 to-indigo-950'
+      },
+      {
+        id: 'b',
+        tag: 'ROCKSTAR ANIRUDH',
+        emoji: '⚡',
+        en: 'Anirudh Ravichander (Hukum Mass Kuthu & High Energy)',
+        desi: 'அனிருத் (ஹukum மாஸ் BGM & குத்து பாட்டு வைப்)',
+        img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-rose-500 to-orange-600'
+      },
+      {
+        id: 'c',
+        tag: 'ISAIPUYAL ARR',
+        emoji: '🎹',
+        en: 'A.R. Rahman (90s/2000s Evergreen Magical Melodies)',
+        desi: 'ஏ.ஆர். ரஹ்மான் (எவர்கிரீன் மெலோடி & மேஜிக் வைப்)',
+        img: 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-cyan-500 to-blue-800'
+      },
+      {
+        id: 'd',
+        tag: 'HARRIS / RAJA VIBE',
+        emoji: '🎶',
+        en: 'Harris Jayaraj / Ilaiyaraaja / English Pop Mix',
+        desi: 'ஹாரிஸ் ஜெயராஜ் கானா / இளையராஜா கிளாசிக் பாட்டு',
+        img: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-emerald-500 to-teal-800'
+      }
+    ]
+  },
+  {
+    id: 'q10',
+    axis: 'squad',
+    category: 'Weekend Bike & Outing Plan 🏍️',
+    bannerImg: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=900&q=80',
+    en: "When Sunday arrives, what is {name}'s ultimate weekend move?",
+    desi: "ஞாயிற்றுக்கிழமை லீவு விட்டா {name}-ஓட மெயின் பிளான் என்ன?",
+    options: [
+      {
+        id: 'a',
+        tag: 'BIKE HIGHWAY RIDE',
+        emoji: '🏍️',
+        en: 'Morning Bike Ride (RE / Duke / R15) to Hills or Highway',
+        desi: 'பைக் எடுத்துட்டு (RE / R15 / MT15) நண்பர்களோட லாங் ரைடு போறது',
+        img: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-orange-500 to-stone-900'
+      },
+      {
+        id: 'b',
+        tag: 'TRIPLES NIGHT TEA',
+        emoji: '🛵',
+        en: 'Triples on Scooty/Bike at 11 PM for Tea & Turf Cricket',
+        desi: 'ஒரே வண்டியில 3 பேரு ஏறி டீ கடை & டர்ப் கிரிக்கெட் போறது',
+        img: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-blue-500 to-indigo-800'
+      },
+      {
+        id: 'c',
+        tag: 'SLEEP TILL 2 PM',
+        emoji: '🛌',
+        en: 'Switches off alarm & sleeps like a log until 2:00 PM',
+        desi: 'மதியம் 2 மணி வரைக்கும் கும்பகர்ணன் மாதிரி தூங்கி எந்திரிக்கிறது',
+        img: 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-indigo-500 to-purple-800'
+      },
+      {
+        id: 'd',
+        tag: 'MALL & MOVIE GANG',
+        emoji: '🍿',
+        en: 'Theatre Movie + Mall Window Shopping with the Squad',
+        desi: 'தியேட்டர்ல படம் பார்த்துட்டு மால்ல சும்மா சுத்திட்டு வர்றது',
+        img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-rose-500 to-amber-600'
+      }
+    ]
+  },
+  {
+    id: 'q11',
+    axis: 'college',
+    category: 'Exam Hall Survival Move ✍️',
+    bannerImg: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80',
+    en: "Inside the Semester Exam Hall, what is {name}'s secret weapon?",
+    desi: "எக்ஸாம் ஹாலுக்குள்ள போனதும் {name} யூஸ் பண்ற டெக்னிக் என்ன?",
+    options: [
+      {
+        id: 'a',
+        tag: '35-PAGE STORY WRITER',
+        emoji: '📄',
+        en: 'Fills 35 pages with neat headings, big diagrams & own stories',
+        desi: 'கதை கதையா எழுதி, கட்டம் கட்டி 35 பக்கம் பேப்பரை நிரப்புறது',
+        img: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-amber-500 to-red-700'
+      },
+      {
+        id: 'b',
+        tag: 'MCQ EYE SIGNAL PRO',
+        emoji: '👀',
+        en: 'Telepathic eye-contact & pen-tap signals for 1-mark MCQs',
+        desi: 'ஒன் மார்க் கேள்விக்கு கண் ஜாடை & விரல் சிக்னல் காட்டுற எக்ஸ்பெர்ட்',
+        img: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-cyan-500 to-blue-800'
+      },
+      {
+        id: 'c',
+        tag: 'HEAD DOWN NAPPER',
+        emoji: '😴',
+        en: 'Writes for 45 mins, puts head down & sleeps till bell rings',
+        desi: 'அரை மணி நேரத்துல தெரிஞ்சதை எழுதிட்டு பெஞ்ச்ல தலை சாய்த்து தூங்குறது',
+        img: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-purple-500 to-slate-800'
+      },
+      {
+        id: 'd',
+        tag: 'ADDITIONAL SHEET KING',
+        emoji: '🔥',
+        en: 'Asks for Additional Sheet & scares the entire classroom',
+        desi: '"மேடம் அடிஷனல் ஷீட்!"னு கேட்டு கிளாஸையே பீதியாக்குறது',
+        img: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-emerald-500 to-green-900'
+      }
+    ]
+  },
+  {
+    id: 'q12',
+    axis: 'squad',
+    category: 'GPay & Pocket Money Status 💸',
+    bannerImg: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=900&q=80',
+    en: "What is {name}'s actual GPay & Bank Balance situation by the 15th of the month?",
+    desi: "மாசம் பாதி தாண்டுனாலே {name}-ஓட GPay பேலன்ஸ் நிலைமை என்ன?",
+    options: [
+      {
+        id: 'a',
+        tag: '₹14.50 IN ACCOUNT',
+        emoji: '🪙',
+        en: 'Always Broke — Living on ₹18.50 bank balance & prayers',
+        desi: 'அக்கவுண்ட்ல ₹14.50 வச்சிட்டு மாசத்தை ஓட்டுற வித்தைக்காரர்',
+        img: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-red-500 to-rose-800'
+      },
+      {
+        id: 'b',
+        tag: 'SEND ₹100 URGENT',
+        emoji: '📲',
+        en: 'Calls friend: "Machan send ₹100 on GPay, I\'ll give cash!"',
+        desi: '"மச்சான் அர்ஜென்ட்டா ஒரு ₹100 GPay போடுடா"னு கால் பண்றது',
+        img: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-amber-500 to-orange-700'
+      },
+      {
+        id: 'c',
+        tag: 'SECRET VIP SPONSOR',
+        emoji: '🏦',
+        en: 'Acts broke in front of friends, secretly rich gang sponsor',
+        desi: '"காசே இல்லடா"னு சொல்லிட்டு எல்லா செலவுக்கும் ஸ்பான்சர் பண்ற VIP',
+        img: 'https://images.unsplash.com/photo-1565514020179-026b92b84bb6?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-emerald-500 to-teal-800'
+      },
+      {
+        id: 'd',
+        tag: 'PETROL & FOOD ONLY',
+        emoji: '⛽',
+        en: '100% of pocket money goes directly to Bike Petrol & Food',
+        desi: 'வர்ற பாக்கெட் மணியை வண்டி பெட்ரோலுக்கும் சாப்பாட்டுக்குமே அழிக்கிறது',
+        img: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-blue-500 to-indigo-800'
+      }
+    ]
+  },
+  {
+    id: 'q13',
+    axis: 'vibe',
+    category: 'WhatsApp & Insta Group Habit 📱',
+    bannerImg: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=900&q=80',
+    en: "What is {name}'s signature move in the Squad WhatsApp / Instagram Group?",
+    desi: "நண்பர்கள் வாட்ஸ்அப் / இன்ஸ்டா குரூப்ல {name}-ஓட மெயின் வேலை என்ன?",
+    options: [
+      {
+        id: 'a',
+        tag: 'REELS SPAMMER',
+        emoji: '🎬',
+        en: 'Ignores normal texts, sends 35 Instagram Reels at 1 AM',
+        desi: 'நார்மல் மெசேஜுக்கு ரிப்ளை பண்ணாம நைட் 30 ரீல்ஸ் அனுப்புறது',
+        img: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-pink-500 to-purple-800'
+      },
+      {
+        id: 'b',
+        tag: 'STICKER ROASTER',
+        emoji: '🤡',
+        en: 'Has an embarrassing sticker of every friend ready to drop',
+        desi: 'குரூப்ல இருக்க எல்லாரோட காமெடி போட்டோவையும் ஸ்டிக்கரா வச்சிருக்கிறது',
+        img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-yellow-400 to-orange-600'
+      },
+      {
+        id: 'c',
+        tag: 'SILENT CCTV',
+        emoji: '🕵️',
+        en: 'Silent CCTV — Reads 500 messages, never types a single word',
+        desi: 'சைலண்ட் CCTV — எல்லா மெசேஜையும் படிச்சிட்டு மூச்சு கூட விடாம இருக்கிறது',
+        img: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-slate-600 to-neutral-900'
+      },
+      {
+        id: 'd',
+        tag: 'GOA PLANNER',
+        emoji: '🏝️',
+        en: 'Starts a "Goa / Kodaikanal Trip Plan" that never happens',
+        desi: 'நடக்கவே நடக்காத கொடைக்கானல் / கோவா டூர் பிளானை ஆரம்பிச்சு வைக்கிறது',
+        img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-cyan-400 to-blue-700'
+      }
+    ]
+  },
+  {
+    id: 'q14',
+    axis: 'vibe',
+    category: 'Relationship & Crush Status 💘',
+    bannerImg: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=900&q=80',
+    en: "What is {name}'s actual Love & Relationship status in college?",
+    desi: "காதல் & க்ரஷ் விஷயத்துல {name}-ஓட உண்மையான ஸ்டேட்டஸ் என்ன?",
+    options: [
+      {
+        id: 'a',
+        tag: 'MORATTU SINGLE',
+        emoji: '🦁',
+        en: 'Certified Morattu Single — Gives love advice to committed friends',
+        desi: 'பிறவியிலேயே முரட்டு சிங்கிள் — ஆனா கமிட்டட் நண்பர்களுக்கு அட்வைஸ் பண்ணுவாங்க',
+        img: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-amber-500 to-red-700'
+      },
+      {
+        id: 'b',
+        tag: 'OTHER DEPT CRUSH',
+        emoji: '👀',
+        en: 'Has a secret 1-side crush in another department / bus route',
+        desi: 'பக்கத்து டிபார்ட்மென்ட்ல சீக்ரெட் க்ரஷ் வச்சிட்டு சும்மா நடக்குறது',
+        img: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-pink-500 to-rose-700'
+      },
+      {
+        id: 'c',
+        tag: 'BUSY ON CALL',
+        emoji: '📞',
+        en: 'Secretly Committed — Always walks away saying "Amma calling"',
+        desi: '"அம்மா கால் பண்றாங்க மச்சான்"னு சொல்லிட்டு தனியா போய் கடலை போடுறது',
+        img: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-purple-500 to-indigo-800'
+      },
+      {
+        id: 'd',
+        tag: 'CAREER FOCUS LIE',
+        emoji: '💼',
+        en: 'Says "No love bro, only focusing on Career" (Biggest Lie)',
+        desi: '"எனக்கு இதெல்லாம் செட் ஆகாது மச்சான், ஒன்லி கேரியர் ஃபோகஸ்!" (உலக மகா உருட்டு)',
+        img: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80',
+        gradient: 'from-emerald-500 to-teal-800'
+      }
+    ]
+  }
+];
+
+// ============================================================================
+// 4. REAL VISUAL AVATAR PORTRAITS (WITH ONLINE PHOTO + FALLBACK)
+// ============================================================================
+const AVATAR_BADGES = [
+  {
+    id: 'av1',
+    emoji: '😎',
+    bg: '#B8FF01',
+    label: 'Mass Rebel',
+    img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'
+  },
+  {
+    id: 'av2',
+    emoji: '🏍️',
+    bg: '#FF3366',
+    label: 'Biker Boy',
+    img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80'
+  },
+  {
+    id: 'av3',
+    emoji: '👑',
+    bg: '#FFB800',
+    label: 'Last Bench King',
+    img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80'
+  },
+  {
+    id: 'av4',
+    emoji: '🎧',
+    bg: '#00E5FF',
+    label: 'U1 / Ani Vibe',
+    img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80'
+  },
+  {
+    id: 'av5',
+    emoji: '🎮',
+    bg: '#A855F7',
+    label: 'Squad Gamer',
+    img: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=300&q=80'
+  },
+  {
+    id: 'av6',
+    emoji: '✨',
+    bg: '#FF90E8',
+    label: 'College Queen',
+    img: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80'
+  },
+  {
+    id: 'av7',
+    emoji: '🏏',
+    bg: '#A3E635',
+    label: 'Turf Captain',
+    img: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=300&q=80'
+  },
+  {
+    id: 'av8',
+    emoji: '🔥',
+    bg: '#FB923C',
+    label: 'Hostel Legend',
+    img: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=300&q=80'
+  }
+];
+
+const QUIZ_THEMES = [
+  {
+    id: 'block',
+    icon: '🚫',
+    color: '#FF3366',
+    enTitle: 'College Squad Block Test',
+    desiTitle: 'மச்சான் Block List டெஸ்ட் 🚫',
+    enDesc: 'Score the pass mark or get blocked from the gang!',
+    desiDesc: 'பாஸ் மார்க் எடு, இல்லன்னா நேரா வாட்ஸ்அப் Block List தான்!'
+  },
+  {
+    id: 'bestie',
+    icon: '🤞',
+    color: '#B8FF01',
+    enTitle: 'Chuddy Buddy vs Fake Snake',
+    desiTitle: 'உயிர் நண்பனா? பச்சோந்தியா? 🐍',
+    enDesc: 'Find out who really knows your favorite actor, food & bench!',
+    desiDesc: 'என் ஃபேவரைட் ஹீரோ, பிரியாணி, பெஞ்ச் யாருக்கு கரெக்டா தெரியும்?'
+  },
+  {
+    id: 'squad',
+    icon: '🏍️',
+    color: '#00E5FF',
+    enTitle: 'Last Bench & Hostel Audit',
+    desiTitle: 'லாஸ்ட் பெஞ்ச் & டீ கடை தகுதி தேர்வு ☕',
+    enDesc: 'Do you deserve a seat at our Tea Kadai table?',
+    desiDesc: 'நம்ம டீ கடை கேங்ல இருக்க தகுதி இருக்கானு செக் பண்ணு!'
+  }
+];
+
+const RELATIONSHIP_TAGS = [
+  { id: 'bestie', emoji: '🤞', en: 'Chuddy Buddy / Day-1', desi: 'உயிர் நண்பன் / Chuddy Buddy' },
+  { id: 'squad', emoji: '🪑', en: 'Last Bench Machan', desi: 'காலேஜ் பெஞ்ச்மேட் மச்சான்' },
+  { id: 'hostel', emoji: '🍜', en: 'Hostel / Roommate', desi: 'ஹாஸ்டல் / ரூம்மேட் பங்காளி' },
+  { id: 'crush', emoji: '👀', en: 'Secret Crush / Dept', desi: 'சீக்ரெட் க்ரஷ் 👀' },
+  { id: 'vibes', emoji: '🏍️', en: 'Tea Kadai & Turf Partner', desi: 'டீ கடை & கிரிக்கெட் தோஸ்து' }
+];
+
+const RADAR_AXES = [
+  { key: 'cinema', labelEn: 'Cinema & Anime', labelDesi: 'சினிமா & கார்ட்டூன்', emoji: '🎬' },
+  { key: 'food', labelEn: 'Food & Tea Sync', labelDesi: 'பிரியாணி & டீ', emoji: '🍗' },
+  { key: 'college', labelEn: 'College Survival', labelDesi: 'காலேஜ் & எக்ஸாம்', emoji: '📚' },
+  { key: 'squad', labelEn: 'Squad Loyalty', labelDesi: 'மச்சான் பாசம்', emoji: '🏍️' },
+  { key: 'vibe', labelEn: 'Music & Vibe', labelDesi: 'மியூசிக் & வைப்', emoji: '🎧' }
+];
+
+// ============================================================================
+// 5. PRE-LOADED DEMO QUIZ ("Y0TJMqL") WITH COLLEGE SQUAD DATA
+// ============================================================================
+const INITIAL_DEMO_QUIZ = {
+  id: 'Y0TJMqL',
+  creatorName: 'Karthik',
+  pronoun: 'm',
+  avatar: 'av1',
+  customAvatarUrl: '',
+  themeId: 'block',
+  passScore: 7,
+  pin: '4829',
+  createdAt: Date.now() - 3600000 * 3,
+  questions: QUESTION_POOL.slice(0, 10).map((q, idx) => ({
+    ...q,
+    correctOptionId: ['a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'b', 'a'][idx],
+    isDealbreaker: idx === 0 || idx === 2
+  })),
+  attempts: [
+    {
+      id: 'att_1',
+      friendName: 'Praveen (Benchmate) 🔥',
+      avatarId: 'av3',
+      relationshipId: 'squad',
+      score: 9,
+      total: 10,
+      avgTimeSec: 3.4,
+      maxStreak: 7,
+      xpEarned: 1150,
+      missedDealbreaker: false,
+      answers: {
+        q1: 'a', q2: 'a', q3: 'a', q4: 'a', q5: 'a',
+        q6: 'a', q7: 'a', q8: 'b', q9: 'b', q10: 'a'
+      },
+      timestamp: Date.now() - 1000 * 60 * 42
+    },
+    {
+      id: 'att_2',
+      friendName: 'Surya_MSD 🦁',
+      avatarId: 'av7',
+      relationshipId: 'bestie',
+      score: 8,
+      total: 10,
+      avgTimeSec: 4.1,
+      maxStreak: 5,
+      xpEarned: 980,
+      missedDealbreaker: false,
+      answers: {
+        q1: 'a', q2: 'b', q3: 'a', q4: 'a', q5: 'a',
+        q6: 'a', q7: 'a', q8: 'a', q9: 'a', q10: 'a'
+      },
+      timestamp: Date.now() - 1000 * 60 * 28
+    },
+    {
+      id: 'att_3',
+      friendName: 'Gautham (Fake Snake 🐍)',
+      avatarId: 'av5',
+      relationshipId: 'vibes',
+      score: 4,
+      total: 10,
+      avgTimeSec: 6.8,
+      maxStreak: 2,
+      xpEarned: 420,
+      missedDealbreaker: true,
+      answers: {
+        q1: 'c', q2: 'd', q3: 'd', q4: 'b', q5: 'a',
+        q6: 'c', q7: 'a', q8: 'b', q9: 'b', q10: 'a'
+      },
+      timestamp: Date.now() - 1000 * 60 * 15
+    },
+    {
+      id: 'att_4',
+      friendName: 'Keerthana ✨',
+      avatarId: 'av6',
+      relationshipId: 'crush',
+      score: 7,
+      total: 10,
+      avgTimeSec: 4.9,
+      maxStreak: 4,
+      xpEarned: 840,
+      missedDealbreaker: false,
+      answers: {
+        q1: 'a', q2: 'a', q3: 'a', q4: 'c', q5: 'b',
+        q6: 'a', q7: 'b', q8: 'a', q9: 'b', q10: 'a'
+      },
+      timestamp: Date.now() - 1000 * 60 * 6
+    }
+  ]
+};
+
+// ============================================================================
+// 6. HELPER FUNCTIONS (PRONOUNS, RADAR CALCULATOR, CLIPBOARD)
+// ============================================================================
+function formatQuestionText(template, creatorName, pronoun) {
+  if (!template) return '';
+  const name = creatorName || 'Your Friend';
+  const map = {
+    m: { he: 'he', him: 'him', his: 'his' },
+    f: { he: 'she', him: 'her', his: 'her' },
+    t: { he: 'they', him: 'them', his: 'their' }
+  }[pronoun || 'm'];
+
+  return template
+    .replace(/\{name\}/g, name)
+    .replace(/\{he\}/g, map.he)
+    .replace(/\{him\}/g, map.him)
+    .replace(/\{his\}/g, map.his);
+}
+
+async function copyTextBulletproof(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (e) {
+    // Fallback below
+  }
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    return ok;
+  } catch (err) {
+    return false;
+  }
+}
+
+function computeRadarMetrics(questions, answersMap) {
+  const buckets = {
+    cinema: { right: 0, total: 0 },
+    food: { right: 0, total: 0 },
+    college: { right: 0, total: 0 },
+    squad: { right: 0, total: 0 },
+    vibe: { right: 0, total: 0 }
+  };
+
+  (questions || []).forEach((q, idx) => {
+    const axisKey = q.axis || RADAR_AXES[idx % RADAR_AXES.length].key;
+    if (!buckets[axisKey]) buckets[axisKey] = { right: 0, total: 0 };
+    buckets[axisKey].total += 1;
+    if (answersMap && answersMap[q.id] === q.correctOptionId) {
+      buckets[axisKey].right += 1;
+    }
+  });
+
+  return RADAR_AXES.map((ax) => {
+    const b = buckets[ax.key];
+    const pct = b && b.total > 0 ? Math.round((b.right / b.total) * 100) : 70;
+    return {
+      ...ax,
+      pct
+    };
+  });
+}
+
+// ============================================================================
+// 7. SMART REAL ONLINE IMAGE COMPONENT + 3D TILT TRADING CARD
+// ============================================================================
+const SmartCardImage = ({ src, alt, emoji = '✨', tag, gradient = 'from-rose-500 to-amber-500', className = 'h-36' }) => {
+  const [loaded, setLoaded] = useState(false);
+  const [errored, setErrored] = useState(!src);
+
+  useEffect(() => {
+    // Reset for every new URL; otherwise a previous image's state can hide the next image.
+    setLoaded(false);
+    setErrored(!src);
+  }, [src]);
+
+  const safeSrc = typeof src === 'string' && /^https:\/\//i.test(src.trim()) ? src.trim() : '';
+
+  return (
+    <div className={`relative w-full ${className} overflow-hidden bg-neutral-900 border-b-[3px] border-[#111] select-none`}>
+      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} flex items-center justify-center`}>
+        {(!loaded || errored || !safeSrc) && (
+          <div className={`w-full h-full flex flex-col items-center justify-center p-3 text-white text-center ${!errored && safeSrc ? 'animate-pulse bg-white/10' : ''}`}>
+            <span className="text-4xl drop-shadow">{emoji}</span>
+            {errored && tag && <span className="mt-2 text-[10px] font-black uppercase tracking-wider bg-black/40 px-2 py-1 rounded">{tag}</span>}
+          </div>
+        )}
+      </div>
+      {safeSrc && !errored && (
+        <img
+          key={safeSrc}
+          src={safeSrc}
+          alt={alt || tag || 'Card visual'}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onLoad={() => setLoaded(true)}
+          onError={() => { setLoaded(false); setErrored(true); }}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent pointer-events-none" />
+      {tag && <div className="absolute top-2.5 left-2.5 z-10 max-w-[80%] truncate px-2.5 py-0.5 rounded-md bg-[#111]/90 text-[#B8FF01] border border-white/30 font-black text-[10px] tracking-wider uppercase shadow">{tag}</div>}
+      <div className="absolute bottom-2 right-2.5 z-10 w-9 h-9 rounded-xl bg-white border-2 border-[#111] shadow-[2px_2px_0px_#111] flex items-center justify-center text-lg">{emoji}</div>
+    </div>
+  );
+};
+
+const TiltTradingCard = ({
+  opt,
+  lang,
+  creatorName,
+  pronoun,
+  isSelected,
+  badgeStatus, // null | 'correct' | 'wrong'
+  onSelect
+}) => {
+  const [tilt, setTilt] = useState({ x: 0, y: 0, glareX: 50, glareY: 50, active: false });
+
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const xPct = (e.clientX - rect.left) / rect.width;
+    const yPct = (e.clientY - rect.top) / rect.height;
+    const rotateY = (xPct - 0.5) * 14;
+    const rotateX = (0.5 - yPct) * 14;
+    setTilt({
+      x: rotateX,
+      y: rotateY,
+      glareX: xPct * 100,
+      glareY: yPct * 100,
+      active: true
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setTilt({ x: 0, y: 0, glareX: 50, glareY: 50, active: false });
+  };
+
+  let frameBg = 'bg-white hover:bg-[#FFFDF5]';
+  if (badgeStatus === 'correct') {
+    frameBg = 'bg-[#B8FF01] ring-4 ring-[#111]';
+  } else if (badgeStatus === 'wrong') {
+    frameBg = 'bg-[#FF3366] text-white';
+  } else if (isSelected) {
+    frameBg = 'bg-[#B8FF01]';
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(opt.id)}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        transform: tilt.active
+          ? `perspective(800px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) translateY(-4px)`
+          : isSelected
+          ? 'translateY(-4px)'
+          : 'none',
+        transition: tilt.active ? 'transform 60ms ease-out' : 'transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1)'
+      }}
+      className={`group relative w-full rounded-2xl border-[3px] border-[#111] overflow-hidden text-left flex flex-col justify-between ${frameBg} ${
+        isSelected
+          ? 'shadow-[6px_6px_0px_#111]'
+          : 'shadow-[4px_4px_0px_#111] hover:shadow-[6px_6px_0px_#111]'
+      }`}
+    >
+      {/* Interactive Holographic Glare Overlay */}
+      {tilt.active && (
+        <div
+          className="pointer-events-none absolute inset-0 z-20 opacity-25"
+          style={{
+            background: `radial-gradient(circle at ${tilt.glareX}% ${tilt.glareY}%, rgba(255,255,255,0.9), transparent 60%)`
+          }}
+        />
+      )}
+
+      {/* Real Online Photography Header */}
+      <SmartCardImage
+        src={opt.img}
+        alt={opt.en}
+        emoji={opt.emoji}
+        tag={opt.tag}
+        gradient={opt.gradient}
+        className="h-36 sm:h-40"
+      />
+
+      {/* Option Caption Body */}
+      <div className="p-3.5 sm:p-4 flex items-center justify-between gap-2 flex-1">
+        <p className="font-extrabold text-sm sm:text-base leading-snug">
+          {formatQuestionText(lang === 'en' ? opt.en : opt.desi, creatorName, pronoun)}
+        </p>
+
+        {isSelected && !badgeStatus && (
+          <div className="w-7 h-7 rounded-full bg-[#111] text-[#B8FF01] flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+        )}
+        {badgeStatus === 'correct' && (
+          <span className="px-2 py-1 rounded-lg bg-[#111] text-[#B8FF01] font-black text-xs shrink-0">
+            MASS! +100
+          </span>
+        )}
+        {badgeStatus === 'wrong' && (
+          <span className="px-2 py-1 rounded-lg bg-black text-white font-black text-xs shrink-0">
+            MISS 💀
+          </span>
+        )}
+      </div>
+    </button>
+  );
+};
+
+// ============================================================================
+// 8. MOTION GRAPHICS COMPONENTS: 5-AXIS SVG RADAR & SPEEDOMETER GAUGE
+// ============================================================================
+const FriendshipRadarChart = ({ metrics, lang }) => {
+  const [animScale, setAnimScale] = useState(0.1);
+
+  useEffect(() => {
+    const t = setTimeout(() => setAnimScale(1), 80);
+    return () => clearTimeout(t);
+  }, [metrics]);
+
+  const size = 290;
+  const center = size / 2;
+  const radius = 92;
+
+  const getPoint = (idx, pctVal) => {
+    const angle = (Math.PI * 2 * idx) / 5 - Math.PI / 2;
+    const r = (pctVal / 100) * radius * animScale;
+    return {
+      x: center + r * Math.cos(angle),
+      y: center + r * Math.sin(angle)
+    };
+  };
+
+  const polygonPoints = metrics
+    .map((m, idx) => {
+      const pt = getPoint(idx, Math.max(m.pct, 15));
+      return `${pt.x},${pt.y}`;
+    })
+    .join(' ');
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible">
+        {/* Background Concentric Pentagon Webs */}
+        {[25, 50, 75, 100].map((lvl) => {
+          const pts = [0, 1, 2, 3, 4]
+            .map((i) => {
+              const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+              const r = (lvl / 100) * radius;
+              return `${center + r * Math.cos(angle)},${center + r * Math.sin(angle)}`;
+            })
+            .join(' ');
+          return (
+            <polygon
+              key={lvl}
+              points={pts}
+              fill={lvl === 100 ? '#FFFDF5' : 'none'}
+              stroke="#111111"
+              strokeWidth={lvl === 100 ? '2.5' : '1'}
+              strokeDasharray={lvl === 100 ? 'none' : '3 3'}
+              opacity={lvl === 100 ? 1 : 0.4}
+            />
+          );
+        })}
+
+        {/* Axis Spokes */}
+        {[0, 1, 2, 3, 4].map((i) => {
+          const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+          const x2 = center + radius * Math.cos(angle);
+          const y2 = center + radius * Math.sin(angle);
+          return (
+            <line
+              key={i}
+              x1={center}
+              y1={center}
+              x2={x2}
+              y2={y2}
+              stroke="#111"
+              strokeWidth="1.5"
+              opacity="0.35"
+            />
+          );
+        })}
+
+        {/* Animated Data Polygon */}
+        <polygon
+          points={polygonPoints}
+          fill="rgba(184, 255, 1, 0.55)"
+          stroke="#FF3366"
+          strokeWidth="3.5"
+          style={{ transition: 'all 700ms cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+        />
+
+        {/* Vertex Nodes & Axis Labels */}
+        {metrics.map((m, idx) => {
+          const pt = getPoint(idx, Math.max(m.pct, 15));
+          const angle = (Math.PI * 2 * idx) / 5 - Math.PI / 2;
+          const labelR = radius + 34;
+          const lx = center + labelR * Math.cos(angle);
+          const ly = center + labelR * Math.sin(angle);
+
+          return (
+            <g key={m.key}>
+              <circle
+                cx={pt.x}
+                cy={pt.y}
+                r="6"
+                fill="#FF3366"
+                stroke="#111"
+                strokeWidth="2.5"
+                style={{ transition: 'all 700ms cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+              />
+              <text
+                x={lx}
+                y={ly - 4}
+                textAnchor="middle"
+                className="font-black text-[10px] fill-[#111]"
+              >
+                {m.emoji} {lang === 'en' ? m.labelEn : m.labelDesi}
+              </text>
+              <text
+                x={lx}
+                y={ly + 10}
+                textAnchor="middle"
+                className="font-black text-[11px] fill-[#FF3366]"
+              >
+                {m.pct}%
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+};
+
+const FriendshipSpeedometer = ({ scorePct, isSafe, lang }) => {
+  const [needlePct, setNeedlePct] = useState(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setNeedlePct(scorePct), 120);
+    return () => clearTimeout(t);
+  }, [scorePct]);
+
+  // Needle angle: -90deg (0%) to +90deg (100%)
+  const deg = -90 + (needlePct / 100) * 180;
+
+  let tierLabel =
+    scorePct >= 80
+      ? lang === 'en'
+        ? '🔥 CHUDDY BUDDY / MACHAN FOR LIFE!'
+        : '🔥 உயிர் நண்பன் / பங்காளி!'
+      : scorePct >= 50
+      ? lang === 'en'
+        ? '☕ TEA KADAI ACQUAINTANCE'
+        : '☕ டீ கடை ஃப்ரெண்ட்'
+      : lang === 'en'
+      ? '🚫 FAKE SNAKE — INSTANT BLOCK!'
+      : '🚫 பச்சோந்தி — உடனே BLOCK!';
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width="260" height="155" viewBox="0 0 260 155" className="overflow-visible">
+        {/* Red Block Zone Arc */}
+        <path
+          d="M 25 130 A 105 105 0 0 1 85 35"
+          fill="none"
+          stroke="#FF3366"
+          strokeWidth="22"
+          strokeLinecap="butt"
+        />
+        {/* Yellow Tea Kadai Zone Arc */}
+        <path
+          d="M 87 34 A 105 105 0 0 1 173 34"
+          fill="none"
+          stroke="#FFB800"
+          strokeWidth="22"
+          strokeLinecap="butt"
+        />
+        {/* Neon Lime Bestie Zone Arc */}
+        <path
+          d="M 175 35 A 105 105 0 0 1 235 130"
+          fill="none"
+          stroke="#B8FF01"
+          strokeWidth="22"
+          strokeLinecap="butt"
+        />
+
+        {/* Outer Bold Stroke */}
+        <path
+          d="M 25 130 A 105 105 0 0 1 235 130"
+          fill="none"
+          stroke="#111"
+          strokeWidth="4"
+        />
+
+        {/* Labels */}
+        <text x="18" y="148" className="text-[10px] font-black fill-[#FF3366]">
+          0% BLOCK
+        </text>
+        <text x="130" y="16" textAnchor="middle" className="text-[10px] font-black fill-[#111]">
+          50% TEA GANG
+        </text>
+        <text x="242" y="148" textAnchor="end" className="text-[10px] font-black fill-[#15803d]">
+          100% MACHAN
+        </text>
+
+        {/* Sweeping Needle */}
+        <g
+          transform={`translate(130, 130) rotate(${deg})`}
+          style={{ transition: 'transform 900ms cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+        >
+          <polygon points="-6,0 0,-92 6,0" fill="#111111" />
+          <circle cx="0" cy="0" r="13" fill={isSafe ? '#B8FF01' : '#FF3366'} stroke="#111" strokeWidth="3.5" />
+        </g>
+      </svg>
+
+      <div className="mt-1 text-center">
+        <div className="text-2xl font-black">{scorePct}% SYNC</div>
+        <div
+          className={`mt-1 px-3 py-1 rounded-full border-2 border-[#111] font-black text-xs inline-block ${
+            isSafe ? 'bg-[#B8FF01] text-[#111]' : 'bg-[#FF3366] text-white'
+          }`}
+        >
+          {tierLabel}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// 9. MAIN APPLICATION COMPONENT
+// ============================================================================
+export default function App() {
+  const [lang, setLang] = useState('en'); // 'en' | 'desi'
+  const [muted, setMuted] = useState(false);
+
+  // Firebase User & Quizzes State
+  const [user, setUser] = useState(null);
+  const [quizzesMap, setQuizzesMap] = useState({
+    [INITIAL_DEMO_QUIZ.id]: INITIAL_DEMO_QUIZ
+  });
+  const [activeQuizId, setActiveQuizId] = useState(INITIAL_DEMO_QUIZ.id);
+
+  // View Mode: 'create' | 'share' | 'play' | 'scoreboard'
+  const [mode, setMode] = useState('create');
+
+  // Toast State
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, type = 'info') => {
+    setToast({ msg, type });
+    setTimeout(() => {
+      setToast((prev) => (prev?.msg === msg ? null : prev));
+    }, 3200);
+  };
+
+  // --------------------------------------------------------------------------
+  // Creator Studio State
+  // --------------------------------------------------------------------------
+  const [creatorStep, setCreatorStep] = useState(1);
+  const [cName, setCName] = useState('');
+  const [cPronoun, setCPronoun] = useState('m');
+  const [cAvatar, setCAvatar] = useState('av1');
+  const [cCustomAvatarUrl, setCCustomAvatarUrl] = useState('');
+  const [cTheme, setCTheme] = useState('block');
+  const [cPassScore, setCPassScore] = useState(7);
+  const [cPin] = useState(() => String(Math.floor(1000 + Math.random() * 9000)));
+  const [cQuestions, setCQuestions] = useState(() =>
+    QUESTION_POOL.slice(0, 10).map((q) => ({
+      ...q,
+      correctOptionId: null,
+      isDealbreaker: false
+    }))
+  );
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+
+  // Custom Question Modal State
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customQText, setCustomQText] = useState('');
+  const [customOpts, setCustomOpts] = useState([
+    {
+      id: 'a',
+      emoji: '🔥',
+      tag: 'OPTION 1',
+      text: '',
+      img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=600&q=80'
+    },
+    {
+      id: 'b',
+      emoji: '😂',
+      tag: 'OPTION 2',
+      text: '',
+      img: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=600&q=80'
+    },
+    {
+      id: 'c',
+      emoji: '🏍️',
+      tag: 'OPTION 3',
+      text: '',
+      img: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80'
+    },
+    {
+      id: 'd',
+      emoji: '😎',
+      tag: 'OPTION 4',
+      text: '',
+      img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80'
+    }
+  ]);
+
+  // --------------------------------------------------------------------------
+  // Friend Gameplay State (With Combo Streak, Timer & Kinetic XP Popups)
+  // --------------------------------------------------------------------------
+  const [playerStep, setPlayerStep] = useState('entry'); // 'entry' | 'quiz' | 'result'
+  const [friendName, setFriendName] = useState('');
+  const [friendAvatar, setFriendAvatar] = useState('av3');
+  const [relationshipId, setRelationshipId] = useState('squad');
+  const [instantFeedback, setInstantFeedback] = useState(true);
+  const [pQuestionIdx, setPQuestionIdx] = useState(0);
+  const [pAnswers, setPAnswers] = useState({});
+  const [lastSelectedOption, setLastSelectedOption] = useState(null);
+  const [latestAttempt, setLatestAttempt] = useState(null);
+
+  // Combo Streak & Live Timer
+  const [comboStreak, setComboStreak] = useState(0);
+  const [maxComboStreak, setMaxComboStreak] = useState(0);
+  const [xpPoints, setXpPoints] = useState(0);
+  const [questionElapsedSec, setQuestionElapsedSec] = useState(0);
+  const [totalTimeSec, setTotalTimeSec] = useState(0);
+  const [kineticPopup, setKineticPopup] = useState(null);
+  const [screenShake, setScreenShake] = useState(false);
+  const [stampSlammed, setStampSlammed] = useState(false);
+
+  const receiptCanvasRef = useRef(null);
+
+  // --------------------------------------------------------------------------
+  // Scoreboard & Admin Moderation State
+  // --------------------------------------------------------------------------
+  const [boardFilter, setBoardFilter] = useState('all');
+  const [inspectedAttempt, setInspectedAttempt] = useState(null);
+  const [unlockedQuizzes, setUnlockedQuizzes] = useState({ [INITIAL_DEMO_QUIZ.id]: true });
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [codeSearchInput, setCodeSearchInput] = useState('');
+  const [showCodeModal, setShowCodeModal] = useState(false);
+
+  const activeQuiz = useMemo(() => {
+    return quizzesMap[activeQuizId] || INITIAL_DEMO_QUIZ;
+  }, [quizzesMap, activeQuizId]);
+
+  const activeTheme = useMemo(() => {
+    return QUIZ_THEMES.find((t) => t.id === activeQuiz.themeId) || QUIZ_THEMES[0];
+  }, [activeQuiz]);
+
+  const activeAvatar = useMemo(() => {
+    return AVATAR_BADGES.find((a) => a.id === activeQuiz.avatar) || AVATAR_BADGES[0];
+  }, [activeQuiz]);
+
+  // Live per-question stopwatch during gameplay
+  useEffect(() => {
+    if (mode !== 'play' || playerStep !== 'quiz' || lastSelectedOption) return;
+    setQuestionElapsedSec(0);
+    const interval = setInterval(() => {
+      setQuestionElapsedSec((prev) => +(prev + 0.1).toFixed(1));
+    }, 100);
+    return () => clearInterval(interval);
+  }, [mode, playerStep, pQuestionIdx, lastSelectedOption]);
+
+  // Trigger Rubber Stamp Slam on Result Screen
+  useEffect(() => {
+    if (mode === 'play' && playerStep === 'result') {
+      setStampSlammed(false);
+      const t = setTimeout(() => {
+        setStampSlammed(true);
+        sfx.stampSlam();
+      }, 350);
+      return () => clearTimeout(t);
+    }
+  }, [mode, playerStep]);
+
+  // ============================================================================
+  // FIREBASE AUTH & REAL-TIME SYNC
+  // ============================================================================
+  useEffect(() => {
+    if (!auth) return;
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (e) {
+        console.warn('Auth fallback:', e);
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user || !db) return;
+    const quizzesCol = collection(db, 'artifacts', appId, 'public', 'data', 'quizzes');
+    const unsubscribe = onSnapshot(
+      quizzesCol,
+      (snapshot) => {
+        const fetched = {};
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data && data.id) {
+            try {
+              fetched[data.id] = {
+                ...data,
+                questions:
+                  typeof data.questions === 'string' ? JSON.parse(data.questions) : data.questions,
+                attempts:
+                  typeof data.attempts === 'string'
+                    ? JSON.parse(data.attempts)
+                    : data.attempts || []
+              };
+            } catch (e) {
+              // Ignore malformed
+            }
+          }
+        });
+        if (Object.keys(fetched).length > 0) {
+          setQuizzesMap((prev) => ({ ...prev, ...fetched }));
+        }
+      },
+      (err) => console.warn('Firestore snapshot fallback:', err)
+    );
+    return () => unsubscribe();
+  }, [user]);
+
+  const saveQuizToCloud = async (quizObj) => {
+    setQuizzesMap((prev) => ({ ...prev, [quizObj.id]: quizObj }));
+    if (user && db) {
+      try {
+        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'quizzes', quizObj.id);
+        await setDoc(docRef, {
+          ...quizObj,
+          questions: JSON.stringify(quizObj.questions),
+          attempts: JSON.stringify(quizObj.attempts || [])
+        });
+      } catch (e) {
+        console.warn('Cloud save skipped:', e);
+      }
+    }
+  };
+
+  // ============================================================================
+  // CREATOR STUDIO HANDLERS
+  // ============================================================================
+  const handleStartBuildingQuestions = (e) => {
+    e.preventDefault();
+    sfx.click();
+    if (!cName.trim()) {
+      showToast(
+        lang === 'en' ? 'Enter your name first Machan!' : 'உங்க பேரை முதல்ல டைப் பண்ணுங்க மச்சான்!',
+        'error'
+      );
+      return;
+    }
+    setCreatorStep(2);
+    setCurrentQIndex(0);
+  };
+
+  const handleSelectCreatorAnswer = (optionId) => {
+    sfx.click();
+    const updated = [...cQuestions];
+    updated[currentQIndex] = {
+      ...updated[currentQIndex],
+      correctOptionId: optionId
+    };
+    setCQuestions(updated);
+
+    if (currentQIndex < 9) {
+      setTimeout(() => {
+        setCurrentQIndex((prev) => Math.min(9, prev + 1));
+      }, 250);
+    }
+  };
+
+  const handleSwapQuestion = () => {
+    sfx.swap();
+    const usedIds = new Set(cQuestions.map((q) => q.id));
+    const available = QUESTION_POOL.filter((q) => !usedIds.has(q.id));
+    if (available.length === 0) {
+      showToast('All 14 college questions cycled!', 'info');
+      return;
+    }
+    const randomPick = available[Math.floor(Math.random() * available.length)];
+    const updated = [...cQuestions];
+    updated[currentQIndex] = {
+      ...randomPick,
+      correctOptionId: null,
+      isDealbreaker: updated[currentQIndex].isDealbreaker
+    };
+    setCQuestions(updated);
+    showToast(
+      lang === 'en' ? 'Swapped for a new College Question! 🔄' : 'வேற புது காலேஜ் கேள்வி மாத்தியாச்சு! 🔄',
+      'success'
+    );
+  };
+
+  const handleToggleDealbreaker = () => {
+    const currentDealbreakers = cQuestions.filter((q) => q.isDealbreaker).length;
+    const isCurrentlyDealbreaker = cQuestions[currentQIndex].isDealbreaker;
+
+    if (!isCurrentlyDealbreaker && currentDealbreakers >= 2) {
+      sfx.wrong();
+      showToast('Max 2 Dealbreaker questions allowed per quiz!', 'error');
+      return;
+    }
+
+    sfx.dealbreaker();
+    const updated = [...cQuestions];
+    updated[currentQIndex] = {
+      ...updated[currentQIndex],
+      isDealbreaker: !isCurrentlyDealbreaker
+    };
+    setCQuestions(updated);
+  };
+
+  const handleSaveCustomQuestion = (e) => {
+    e.preventDefault();
+    if (!customQText.trim() || customOpts.some((o) => !o.text.trim())) {
+      showToast('Fill out the question and all 4 options!', 'error');
+      return;
+    }
+    sfx.correct(2);
+    const newQ = {
+      id: 'custom_' + Date.now(),
+      axis: 'squad',
+      category: 'College Inside Joke ✨',
+      bannerImg:
+        'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=900&q=80',
+      en: customQText.trim(),
+      desi: customQText.trim(),
+      options: customOpts.map((o) => ({
+        id: o.id,
+        emoji: o.emoji,
+        tag: o.tag,
+        en: o.text.trim(),
+        desi: o.text.trim(),
+        img: o.img,
+        gradient: 'from-purple-600 to-indigo-900'
+      })),
+      correctOptionId: 'a',
+      isDealbreaker: cQuestions[currentQIndex].isDealbreaker
+    };
+    const updated = [...cQuestions];
+    updated[currentQIndex] = newQ;
+    setCQuestions(updated);
+    setShowCustomModal(false);
+    setCustomQText('');
+    showToast('Custom College Question Added! 🎯', 'success');
+  };
+
+  const handlePublishQuiz = async () => {
+    const unansweredIdx = cQuestions.findIndex((q) => !q.correctOptionId);
+    if (unansweredIdx !== -1) {
+      sfx.wrong();
+      setCurrentQIndex(unansweredIdx);
+      showToast(`Pick your answer for Question #${unansweredIdx + 1}!`, 'error');
+      return;
+    }
+
+    sfx.fanfare();
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let newId = '';
+    for (let i = 0; i < 6; i++) {
+      newId += chars[Math.floor(Math.random() * chars.length)];
+    }
+
+    const newQuiz = {
+      id: newId,
+      creatorName: cName.trim(),
+      pronoun: cPronoun,
+      avatar: cAvatar,
+      customAvatarUrl: cCustomAvatarUrl.trim(),
+      themeId: cTheme,
+      passScore: cPassScore,
+      pin: cPin,
+      createdAt: Date.now(),
+      questions: cQuestions,
+      attempts: []
+    };
+
+    await saveQuizToCloud(newQuiz);
+    setActiveQuizId(newId);
+    setUnlockedQuizzes((prev) => ({ ...prev, [newId]: true }));
+    setMode('share');
+    showToast(`Quiz #${newId} is LIVE! Share with your College Gang 🚀`, 'success');
+  };
+
+  // ============================================================================
+  // FRIEND GAMEPLAY HANDLERS (WITH STREAK, SPEED BONUS & SHAKE)
+  // ============================================================================
+  const handleStartFriendPlay = (e) => {
+    e.preventDefault();
+    const cleanName = friendName.trim();
+    if (!cleanName || cleanName.length < 2) {
+      sfx.wrong();
+      showToast('Enter your nickname (min 2 chars)!', 'error');
+      return;
+    }
+    sfx.click();
+    setPAnswers({});
+    setPQuestionIdx(0);
+    setComboStreak(0);
+    setMaxComboStreak(0);
+    setXpPoints(0);
+    setTotalTimeSec(0);
+    setLastSelectedOption(null);
+    setPlayerStep('quiz');
+  };
+
+  const handleFriendPickOption = (optionId) => {
+    if (lastSelectedOption) return;
+    const currentQ = activeQuiz.questions[pQuestionIdx];
+    const isCorrect = optionId === currentQ.correctOptionId;
+
+    const newTotalTime = +(totalTimeSec + questionElapsedSec).toFixed(1);
+    setTotalTimeSec(newTotalTime);
+
+    let nextStreak = comboStreak;
+    let nextMaxStreak = maxComboStreak;
+    let nextXp = xpPoints;
+
+    if (isCorrect) {
+      nextStreak = comboStreak + 1;
+      nextMaxStreak = Math.max(maxComboStreak, nextStreak);
+      const speedBonus = questionElapsedSec < 3.5 ? 50 : 20;
+      const gained = 100 + nextStreak * 25 + speedBonus;
+      nextXp += gained;
+
+      setComboStreak(nextStreak);
+      setMaxComboStreak(nextMaxStreak);
+      setXpPoints(nextXp);
+
+      if (instantFeedback) {
+        sfx.correct(nextStreak);
+        setKineticPopup({
+          text:
+            nextStreak >= 3
+              ? `🔥 ${nextStreak}x MASS STREAK! +${gained} XP`
+              : `⚡ SEMA MATCH! +${gained} XP`,
+          good: true
+        });
+      } else {
+        sfx.click();
+      }
+    } else {
+      nextStreak = 0;
+      setComboStreak(0);
+      if (instantFeedback) {
+        sfx.wrong();
+        setScreenShake(true);
+        setTimeout(() => setScreenShake(false), 420);
+        setKineticPopup({
+          text: currentQ.isDealbreaker
+            ? '💀 DEALBREAKER MISSED! BLOCK ALERT!'
+            : '❌ WRONG GUESS! STREAK LOST!',
+          good: false
+        });
+      } else {
+        sfx.click();
+      }
+    }
+
+    setLastSelectedOption(optionId);
+    const updatedAnswers = { ...pAnswers, [currentQ.id]: optionId };
+    setPAnswers(updatedAnswers);
+
+    setTimeout(async () => {
+      setKineticPopup(null);
+      setLastSelectedOption(null);
+
+      if (pQuestionIdx < activeQuiz.questions.length - 1) {
+        setPQuestionIdx((prev) => prev + 1);
+      } else {
+        let score = 0;
+        let missedDealbreaker = false;
+        activeQuiz.questions.forEach((q) => {
+          if (updatedAnswers[q.id] === q.correctOptionId) {
+            score += 1;
+          } else if (q.isDealbreaker) {
+            missedDealbreaker = true;
+          }
+        });
+
+        const passed = score >= activeQuiz.passScore && !missedDealbreaker;
+        if (passed) sfx.fanfare();
+        else sfx.blockedAlarm();
+
+        const avgTimeSec = +(newTotalTime / activeQuiz.questions.length).toFixed(1);
+
+        const attemptObj = {
+          id: 'att_' + Date.now(),
+          friendName: friendName.trim(),
+          avatarId: friendAvatar,
+          relationshipId,
+          score,
+          total: activeQuiz.questions.length,
+          avgTimeSec,
+          maxStreak: nextMaxStreak,
+          xpEarned: nextXp,
+          missedDealbreaker,
+          answers: updatedAnswers,
+          timestamp: Date.now()
+        };
+
+        const updatedQuiz = {
+          ...activeQuiz,
+          attempts: [attemptObj, ...(activeQuiz.attempts || [])]
+        };
+
+        setLatestAttempt(attemptObj);
+        setPlayerStep('result');
+        await saveQuizToCloud(updatedQuiz);
+      }
+    }, instantFeedback ? 650 : 240);
+  };
+
+  // ============================================================================
+  // ONE-TAP LIVE COLLEGE FRIEND SIMULATOR
+  // ============================================================================
+  const handleSimulateFriendAttempt = async () => {
+    const sampleSquad = [
+      { name: 'Vignesh (Last Bench) 🔥', av: 'av2', rel: 'squad', acc: 0.9 },
+      { name: 'Harish_R15 🏍️', av: 'av8', rel: 'hostel', acc: 0.8 },
+      { name: 'Santhosh (1-Night Pro)', av: 'av5', rel: 'bestie', acc: 0.45 },
+      { name: 'Divya (IT Dept) 👀', av: 'av6', rel: 'crush', acc: 0.75 },
+      { name: 'Lokesh (Tea Master) ☕', av: 'av4', rel: 'vibes', acc: 0.85 },
+      { name: 'Rakesh (Fake Snake 🐍)', av: 'av3', rel: 'squad', acc: 0.3 }
+    ];
+    const existing = new Set((activeQuiz.attempts || []).map((a) => a.friendName));
+    const avail = sampleSquad.filter((f) => !existing.has(f.name));
+    const chosen =
+      avail.length > 0
+        ? avail[Math.floor(Math.random() * avail.length)]
+        : {
+            name: `Machan_${Math.floor(10 + Math.random() * 89)} ⚡`,
+            av: 'av1',
+            rel: 'squad',
+            acc: Math.random() * 0.55 + 0.4
+          };
+
+    const simulatedAnswers = {};
+    let score = 0;
+    let missedDealbreaker = false;
+    let streak = 0;
+    let maxStreak = 0;
+
+    activeQuiz.questions.forEach((q) => {
+      const hit = Math.random() < chosen.acc;
+      if (hit) {
+        simulatedAnswers[q.id] = q.correctOptionId;
+        score += 1;
+        streak += 1;
+        maxStreak = Math.max(maxStreak, streak);
+      } else {
+        streak = 0;
+        const wrongOpts = q.options.filter((o) => o.id !== q.correctOptionId);
+        const pick = wrongOpts[Math.floor(Math.random() * wrongOpts.length)];
+        simulatedAnswers[q.id] = pick ? pick.id : 'b';
+        if (q.isDealbreaker) missedDealbreaker = true;
+      }
+    });
+
+    const newAttempt = {
+      id: 'sim_' + Date.now(),
+      friendName: chosen.name,
+      avatarId: chosen.av,
+      relationshipId: chosen.rel,
+      score,
+      total: activeQuiz.questions.length,
+      avgTimeSec: +(Math.random() * 3.5 + 2.5).toFixed(1),
+      maxStreak,
+      xpEarned: score * 125 + maxStreak * 30,
+      missedDealbreaker,
+      answers: simulatedAnswers,
+      timestamp: Date.now()
+    };
+
+    const updatedQuiz = {
+      ...activeQuiz,
+      attempts: [newAttempt, ...(activeQuiz.attempts || [])]
+    };
+
+    const isSafe = score >= activeQuiz.passScore && !missedDealbreaker;
+    if (isSafe) sfx.correct(3);
+    else sfx.dealbreaker();
+
+    await saveQuizToCloud(updatedQuiz);
+    showToast(
+      `🔔 Live Squad Entry: ${chosen.name} scored ${score}/10 (${
+        isSafe ? 'APPROVED MACHAN ✅' : 'BLOCKED 🚫'
+      })`,
+      isSafe ? 'success' : 'error'
+    );
+  };
+
+  // ============================================================================
+  // UPGRADED HTML5 CANVAS RECEIPT GENERATOR (WITH RADAR SUMMARY & STAMP)
+  // ============================================================================
+  useEffect(() => {
+    if (mode !== 'play' || playerStep !== 'result' || !latestAttempt || !receiptCanvasRef.current) {
+      return;
+    }
+    const canvas = receiptCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const W = 700;
+    const H = 1020;
+    canvas.width = W;
+    canvas.height = H;
+
+    const isSafe = latestAttempt.score >= activeQuiz.passScore && !latestAttempt.missedDealbreaker;
+    const radar = computeRadarMetrics(activeQuiz.questions, latestAttempt.answers);
+
+    // Paper Base
+    ctx.fillStyle = '#FFFDF5';
+    ctx.fillRect(0, 0, W, H);
+
+    // Sawtooth receipt edges
+    ctx.fillStyle = '#111111';
+    for (let x = 0; x < W; x += 20) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + 10, 14);
+      ctx.lineTo(x + 20, 0);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(x, H);
+      ctx.lineTo(x + 10, H - 14);
+      ctx.lineTo(x + 20, H);
+      ctx.fill();
+    }
+
+    // Outer Brutalist Frame
+    ctx.strokeStyle = '#111111';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(22, 26, W - 44, H - 52);
+
+    // Header Banner
+    ctx.fillStyle = isSafe ? '#B8FF01' : '#FF3366';
+    ctx.fillRect(25, 29, W - 50, 118);
+    ctx.strokeStyle = '#111111';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(22, 147);
+    ctx.lineTo(W - 22, 147);
+    ctx.stroke();
+
+    ctx.fillStyle = isSafe ? '#111111' : '#FFFFFF';
+    ctx.font = '900 31px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText("DON'T BLOCK ME! // COLLEGE SQUAD RECEIPT", W / 2, 78);
+    ctx.font = 'bold 19px monospace';
+    ctx.fillText(
+      `HOST: ${activeQuiz.creatorName.toUpperCase()}  |  QUIZ #${activeQuiz.id}  |  PASS: ${activeQuiz.passScore}/10`,
+      W / 2,
+      118
+    );
+
+    // Candidate Info
+    ctx.fillStyle = '#111111';
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 21px monospace';
+    const relObj =
+      RELATIONSHIP_TAGS.find((r) => r.id === latestAttempt.relationshipId) || RELATIONSHIP_TAGS[0];
+    ctx.fillText(`CANDIDATE : ${latestAttempt.friendName}`, 46, 188);
+    ctx.fillText(`RELATION  : ${relObj.en.toUpperCase()}`, 46, 220);
+    ctx.fillText(
+      `SPEED/XP  : ${latestAttempt.avgTimeSec || 3.8}s AVG  |  🔥 ${latestAttempt.maxStreak || 3}x STREAK`,
+      46,
+      252
+    );
+
+    // Score Box
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(W - 216, 168, 166, 98);
+    ctx.fillStyle = isSafe ? '#B8FF01' : '#FFB800';
+    ctx.fillRect(W - 222, 162, 166, 98);
+    ctx.strokeRect(W - 222, 162, 166, 98);
+
+    ctx.fillStyle = '#111111';
+    ctx.textAlign = 'center';
+    ctx.font = '900 44px sans-serif';
+    ctx.fillText(`${latestAttempt.score}/10`, W - 139, 218);
+    ctx.font = 'bold 13px monospace';
+    ctx.fillText(`${latestAttempt.xpEarned || 850} XP EARNED`, W - 139, 245);
+
+    const drawDash = (y) => {
+      ctx.save();
+      ctx.strokeStyle = '#111111';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath();
+      ctx.moveTo(44, y);
+      ctx.lineTo(W - 44, y);
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    drawDash(282);
+
+    // 5-Axis Compatibility Bars inside Receipt
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillStyle = '#111111';
+    ctx.fillText('SQUAD VIBE RADAR BREAKDOWN:', 46, 310);
+
+    radar.forEach((r, idx) => {
+      const bx = 46 + (idx % 2) * 305;
+      const by = 338 + Math.floor(idx / 2) * 34;
+      ctx.font = 'bold 14px monospace';
+      ctx.fillStyle = '#111';
+      ctx.fillText(`${r.labelEn.slice(0, 14).padEnd(14, ' ')} ${r.pct}%`, bx, by);
+    });
+
+    drawDash(432);
+
+    // 10 Questions Table
+    ctx.font = 'bold 15px monospace';
+    ctx.fillText('Q#   TOPIC                      DEALBREAKER    STATUS', 46, 458);
+    drawDash(470);
+
+    activeQuiz.questions.forEach((q, idx) => {
+      const y = 500 + idx * 32;
+      const gotRight = latestAttempt.answers[q.id] === q.correctOptionId;
+      ctx.font = 'bold 16px monospace';
+      ctx.fillStyle = '#111111';
+      const numStr = String(idx + 1).padStart(2, '0');
+      const catStr = (q.category || 'Question').replace(/[^\w\s&]/g, '').trim().padEnd(24, ' ').slice(0, 24);
+      const dbStr = q.isDealbreaker ? '⚠️ CRITICAL' : '    -      ';
+      ctx.fillText(`${numStr}   ${catStr}  ${dbStr}`, 46, y);
+
+      ctx.textAlign = 'right';
+      ctx.fillStyle = gotRight ? '#047857' : '#DC2626';
+      ctx.fillText(gotRight ? '[MASS +1]' : '[FLOP +0]', W - 46, y);
+      ctx.textAlign = 'left';
+    });
+
+    drawDash(815);
+
+    // Giant Rubber Stamp Verdict
+    ctx.save();
+    ctx.translate(W / 2, 880);
+    ctx.rotate(-0.04);
+    ctx.fillStyle = isSafe ? '#B8FF01' : '#FF3366';
+    ctx.fillRect(-245, -36, 490, 72);
+    ctx.strokeStyle = '#111111';
+    ctx.lineWidth = 5;
+    ctx.strokeRect(-245, -36, 490, 72);
+
+    ctx.fillStyle = isSafe ? '#111111' : '#FFFFFF';
+    ctx.textAlign = 'center';
+    ctx.font = '900 29px sans-serif';
+    ctx.fillText(
+      isSafe ? '✅ APPROVED CHUDDY BUDDY' : '🚫 BLOCKED FROM THE SQUAD',
+      0,
+      10
+    );
+    ctx.restore();
+
+    // Barcode Footer
+    ctx.fillStyle = '#111111';
+    for (let bx = 170; bx < W - 170; bx += 7) {
+      const bw = bx % 14 === 0 ? 4 : 2;
+      ctx.fillRect(bx, 935, bw, 28);
+    }
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 13px monospace';
+    ctx.fillText(
+      `BLOCK.YOUTEST.ME/#${activeQuiz.id} • ${new Date(latestAttempt.timestamp).toLocaleTimeString()}`,
+      W / 2,
+      982
+    );
+  }, [mode, playerStep, latestAttempt, activeQuiz]);
+
+  const handleDownloadReceipt = () => {
+    if (!receiptCanvasRef.current) return;
+    sfx.click();
+    try {
+      const dataUrl = receiptCanvasRef.current.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `SquadReceipt-${activeQuiz.creatorName}-${latestAttempt?.friendName || 'Machan'}.png`;
+      link.href = dataUrl;
+      link.click();
+      showToast('High-Res Squad Receipt Downloaded! Post on IG Story 📸', 'success');
+    } catch (e) {
+      showToast('Receipt ready! Screenshot or save to share.', 'info');
+    }
+  };
+
+  // ============================================================================
+  // SCOREBOARD ANALYTICS & ACCURACY BAR GRAPH DATA
+  // ============================================================================
+  const isOwnerUnlocked = !!unlockedQuizzes[activeQuiz.id];
+
+  const boardAnalytics = useMemo(() => {
+    const attempts = activeQuiz.attempts || [];
+    const total = attempts.length;
+    const safeList = attempts.filter(
+      (a) => a.score >= activeQuiz.passScore && !a.missedDealbreaker
+    );
+    const blockList = attempts.filter(
+      (a) => a.score < activeQuiz.passScore || a.missedDealbreaker
+    );
+    const avgScore =
+      total > 0 ? (attempts.reduce((acc, a) => acc + a.score, 0) / total).toFixed(1) : '0.0';
+
+    const questionStats = (activeQuiz.questions || []).map((q, idx) => {
+      const rightCount = attempts.filter((a) => a.answers?.[q.id] === q.correctOptionId).length;
+      const pct = total > 0 ? Math.round((rightCount / total) * 100) : 0;
+      const rightOpt = q.options.find((o) => o.id === q.correctOptionId);
+      return {
+        idx: idx + 1,
+        id: q.id,
+        category: q.category,
+        pct,
+        rightCount,
+        isDealbreaker: q.isDealbreaker,
+        rightLabel: rightOpt ? `${rightOpt.emoji} ${rightOpt.tag}` : ''
+      };
+    });
+
+    // Squad average radar
+    const avgRadar = RADAR_AXES.map((ax) => {
+      if (total === 0) return { ...ax, pct: 75 };
+      const sum = attempts.reduce((acc, att) => {
+        const r = computeRadarMetrics(activeQuiz.questions, att.answers).find(
+          (item) => item.key === ax.key
+        );
+        return acc + (r ? r.pct : 70);
+      }, 0);
+      return { ...ax, pct: Math.round(sum / total) };
+    });
+
+    return {
+      total,
+      safeCount: safeList.length,
+      blockCount: blockList.length,
+      avgScore,
+      questionStats,
+      avgRadar
+    };
+  }, [activeQuiz]);
+
+  const filteredAttempts = useMemo(() => {
+    const list = activeQuiz.attempts || [];
+    if (boardFilter === 'safe') {
+      return list.filter((a) => a.score >= activeQuiz.passScore && !a.missedDealbreaker);
+    }
+    if (boardFilter === 'blocked') {
+      return list.filter((a) => a.score < activeQuiz.passScore || a.missedDealbreaker);
+    }
+    if (boardFilter === 'dealbreaker') {
+      return list.filter((a) => a.missedDealbreaker);
+    }
+    return list;
+  }, [activeQuiz, boardFilter]);
+
+  const shareUrl = `https://block.youtest.me/find?id=${activeQuiz.id}&q=${activeQuiz.pronoun}`;
+
+  // ============================================================================
+  // RENDER APPLICATION
+  // ============================================================================
+  return (
+    <div
+      className={`min-h-screen text-[#111111] pb-20 selection:bg-[#FF3366] selection:text-white transition-transform ${
+        screenShake ? ' translate-x-2 -translate-y-1 ' : ''
+      }`}
+      style={{
+        backgroundColor: '#FFFDF5',
+        backgroundImage: 'radial-gradient(#111111 1.15px, transparent 1.15px)',
+        backgroundSize: '24px 24px'
+      }}
+    >
+      {/* FLOATING TOAST ALERT */}
+      {toast && (
+        <div className="fixed bottom-5 right-5 z-50 max-w-sm animate-bounce">
+          <div
+            className={`px-4 py-3 rounded-2xl border-[3px] border-[#111] shadow-[5px_5px_0px_#111] font-black flex items-center gap-3 ${
+              toast.type === 'error'
+                ? 'bg-[#FF3366] text-white'
+                : toast.type === 'success'
+                ? 'bg-[#B8FF01] text-[#111]'
+                : 'bg-[#00E5FF] text-[#111]'
+            }`}
+          >
+            <Zap className="w-5 h-5 shrink-0" />
+            <span className="text-sm leading-tight">{toast.msg}</span>
+            <button onClick={() => setToast(null)} className="ml-auto p-1 hover:bg-black/10 rounded">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* STICKY HEADER & NAVIGATION BAR */}
+      {/* ==================================================================== */}
+      <header className="sticky top-0 z-40 bg-[#FFFDF5]/95 backdrop-blur border-b-[3px] border-[#111] px-3 sm:px-6 py-3">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          {/* Logo */}
+          <div
+            onClick={() => {
+              sfx.click();
+              setMode('create');
+            }}
+            className="flex items-center gap-3 cursor-pointer group"
+          >
+            <img
+              src="/squad-logo.svg"
+              alt="Don't Block Me College Squad logo"
+              width="48"
+              height="48"
+              className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl border-[3px] border-[#111] shadow-[3px_3px_0px_#111] group-hover:-rotate-6 transition-transform"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-black text-lg sm:text-xl tracking-tight">
+                  DON&apos;T BLOCK ME!
+                </span>
+                <span className="bg-[#B8FF01] text-[#111] text-[10px] font-black px-2.5 py-0.5 rounded-full border-2 border-[#111] uppercase">
+                  College Squad 3.0
+                </span>
+              </div>
+              <p className="text-xs font-bold text-neutral-600 hidden sm:block">
+                {lang === 'en'
+                  ? 'Visual Trading Cards • 3D Motion Physics • Live Friendship Radar'
+                  : 'காலேஜ் மச்சான் & பெஸ்டி தகுதித் தேர்வு • லைவ் ரேடார் கிராப்'}
+              </p>
+            </div>
+          </div>
+
+          {/* Right Quick Actions */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                sfx.click();
+                setLang((prev) => (prev === 'en' ? 'desi' : 'en'));
+              }}
+              className="px-3.5 py-2 rounded-xl bg-[#FFB800] border-[2.5px] border-[#111] shadow-[3px_3px_0px_#111] active:translate-y-0.5 font-black text-xs sm:text-sm flex items-center gap-1.5"
+            >
+              <Globe className="w-4 h-4" />
+              {lang === 'en' ? 'Switch to Tanglish 🔥' : 'English Mode 🌐'}
+            </button>
+
+            <button
+              onClick={() => {
+                sfx.click();
+                setShowCodeModal(true);
+              }}
+              className="px-3 py-2 rounded-xl bg-white border-[2.5px] border-[#111] shadow-[3px_3px_0px_#111] font-black text-xs sm:text-sm flex items-center gap-1"
+            >
+              <Hash className="w-4 h-4 text-[#FF3366]" />
+              <span>#{activeQuiz.id}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                sfx.muted = !muted;
+                setMuted(!muted);
+              }}
+              className={`p-2 rounded-xl border-[2.5px] border-[#111] shadow-[3px_3px_0px_#111] ${
+                muted ? 'bg-neutral-200' : 'bg-[#00E5FF]'
+              }`}
+            >
+              {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Flow Switcher Bar */}
+        <div className="max-w-6xl mx-auto mt-3 pt-2.5 border-t-2 border-dashed border-neutral-300 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                sfx.click();
+                setMode('create');
+              }}
+              className={`px-3.5 py-1.5 rounded-xl border-2 border-[#111] font-black text-xs sm:text-sm whitespace-nowrap flex items-center gap-1.5 transition-all ${
+                mode === 'create'
+                  ? 'bg-[#111] text-[#B8FF01] shadow-[2px_2px_0px_#FF3366]'
+                  : 'bg-white hover:bg-neutral-100'
+              }`}
+            >
+              <PlusCircle className="w-4 h-4" />
+              {lang === 'en' ? '1. Creator Studio' : '1. குவிஸ் உருவாக்கு'}
+            </button>
+
+            <button
+              onClick={() => {
+                sfx.click();
+                setMode('share');
+              }}
+              className={`px-3.5 py-1.5 rounded-xl border-2 border-[#111] font-black text-xs sm:text-sm whitespace-nowrap flex items-center gap-1.5 transition-all ${
+                mode === 'share'
+                  ? 'bg-[#111] text-[#00E5FF] shadow-[2px_2px_0px_#FF3366]'
+                  : 'bg-white hover:bg-neutral-100'
+              }`}
+            >
+              <Share2 className="w-4 h-4" />
+              {lang === 'en' ? '2. Viral Link & OG Card' : '2. வாட்ஸ்அப் லிங்க்'}
+            </button>
+
+            <button
+              onClick={() => {
+                sfx.click();
+                setPlayerStep('entry');
+                setMode('play');
+              }}
+              className={`px-3.5 py-1.5 rounded-xl border-2 border-[#111] font-black text-xs sm:text-sm whitespace-nowrap flex items-center gap-1.5 transition-all ${
+                mode === 'play'
+                  ? 'bg-[#FF3366] text-white shadow-[2px_2px_0px_#111]'
+                  : 'bg-white hover:bg-neutral-100'
+              }`}
+            >
+              <Play className="w-4 h-4" />
+              {lang === 'en' ? '3. Play as Friend (3D Cards)' : '3. நண்பனாக விளையாடு'}
+            </button>
+
+            <button
+              onClick={() => {
+                sfx.click();
+                setMode('scoreboard');
+              }}
+              className={`px-3.5 py-1.5 rounded-xl border-2 border-[#111] font-black text-xs sm:text-sm whitespace-nowrap flex items-center gap-1.5 transition-all ${
+                mode === 'scoreboard'
+                  ? 'bg-[#B8FF01] text-[#111] shadow-[2px_2px_0px_#111]'
+                  : 'bg-white hover:bg-neutral-100'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              {lang === 'en' ? '4. Motion Graphs & Board' : '4. கிராப் & ஸ்கோர்போர்டு'}
+              <span className="px-1.5 py-0.2 bg-[#111] text-white rounded-full text-[11px]">
+                {(activeQuiz.attempts || []).length}
+              </span>
+            </button>
+          </div>
+
+          <button
+            onClick={handleSimulateFriendAttempt}
+            className="px-3.5 py-1.5 rounded-xl bg-[#00E5FF] border-2 border-[#111] shadow-[2px_2px_0px_#111] active:translate-y-0.5 font-black text-xs whitespace-nowrap flex items-center gap-1.5"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            {lang === 'en' ? '+ Simulate Squad Friend' : '+ டमी மச்சான் டெஸ்ட்'}
+          </button>
+        </div>
+      </header>
+
+      {/* ==================================================================== */}
+      {/* MAIN BODY */}
+      {/* ==================================================================== */}
+      <main className="max-w-5xl mx-auto px-4 pt-7">
+        {/* ================================================================== */}
+        {/* VIEW 1: CREATOR STUDIO (PHOTO AVATARS + VISUAL QUESTION BUILDER) */}
+        {/* ================================================================== */}
+        {mode === 'create' && (
+          <div>
+            {/* Quick Demo Showcase Banner */}
+            <div className="mb-7 bg-gradient-to-r from-[#B8FF01] via-[#00E5FF] to-[#B8FF01] border-[3px] border-[#111] rounded-3xl p-4 sm:p-5 shadow-[5px_5px_0px_#111] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <img
+                  src={AVATAR_BADGES[0].img}
+                  alt="Demo Host"
+                  className="w-14 h-14 rounded-2xl object-cover border-[3px] border-[#111] shadow-[3px_3px_0px_#111] shrink-0"
+                />
+                <div>
+                  <div className="inline-block px-2.5 py-0.5 rounded-md bg-[#111] text-[#B8FF01] font-black text-[10px] uppercase mb-1">
+                    INSTANT COLLEGE SQUAD DEMO LOADED • #Y0TJMqL
+                  </div>
+                  <h2 className="font-black text-base sm:text-lg leading-tight">
+                    {lang === 'en'
+                      ? "Test-Play Karthik's College Quiz (Vijay, Shinchan, Biryani, Last Bench, IPL)!"
+                      : 'கார்த்திக்கின் காலேஜ் குவிஸை (விஜய், ஷின்சான், பிரியாணி, IPL) இப்பவே டெஸ்ட் பண்ணுங்க!'}
+                  </h2>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0">
+                <button
+                  onClick={() => {
+                    sfx.click();
+                    setActiveQuizId('Y0TJMqL');
+                    setPlayerStep('entry');
+                    setMode('play');
+                  }}
+                  className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-[#FF3366] text-white border-[2.5px] border-[#111] shadow-[3px_3px_0px_#111] font-black text-xs sm:text-sm flex items-center justify-center gap-1.5"
+                >
+                  <Play className="w-4 h-4" />
+                  Play 3D Card Quiz
+                </button>
+                <button
+                  onClick={() => {
+                    sfx.click();
+                    setActiveQuizId('Y0TJMqL');
+                    setMode('scoreboard');
+                  }}
+                  className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-white text-[#111] border-[2.5px] border-[#111] shadow-[3px_3px_0px_#111] font-black text-xs sm:text-sm flex items-center justify-center gap-1.5"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  See Motion Graphs
+                </button>
+              </div>
+            </div>
+
+            {creatorStep === 1 ? (
+              /* STEP 1: CREATOR PROFILE & REAL PHOTO AVATAR PICKER */
+              <div className="bg-white border-[3px] border-[#111] rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_#111]">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+                  <div>
+                    <span className="inline-block px-3 py-1 rounded-full bg-[#FF3366] text-white border-2 border-[#111] font-black text-xs uppercase mb-2">
+                      STEP 1 OF 2 • COLLEGE SQUAD EDITION
+                    </span>
+                    <h1 className="text-2xl sm:text-3xl font-black">
+                      {lang === 'en'
+                        ? 'Create Your "Don’t Block Me" Squad Quiz 🔥'
+                        : 'உங்க காலேஜ் நண்பர்களுக்கான Block Test உருவாக்குங்க 🔥'}
+                    </h1>
+                  </div>
+                </div>
+
+                <form onSubmit={handleStartBuildingQuestions} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block font-black text-sm mb-2">
+                        {lang === 'en'
+                          ? '1. Your Name / College Nickname *'
+                          : '1. உங்க பெயர் / காலேஜ் பட்டப்பெயர் *'}
+                      </label>
+                      <input
+                        type="text"
+                        value={cName}
+                        onChange={(e) => setCName(e.target.value)}
+                        placeholder={
+                          lang === 'en'
+                            ? 'e.g., Karthik,urya, Priya, Harish...'
+                            : 'உதா: கார்த்திக், சூர்யா, திவ்யா...'
+                        }
+                        maxLength={22}
+                        className="w-full px-4 py-3.5 rounded-xl bg-[#FFFDF5] border-[3px] border-[#111] shadow-[3px_3px_0px_#111] font-bold text-base focus:outline-none focus:bg-[#B8FF01]/20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-black text-sm mb-2">
+                        {lang === 'en' ? '2. Select Vibe Pronouns' : '2. பாலினம் / Pronoun'}
+                      </label>
+                      <div className="grid grid-cols-3 gap-2.5">
+                        {[
+                          { id: 'm', label: 'Machan (He) 👦' },
+                          { id: 'f', label: 'Bestie (She) 👧' },
+                          { id: 't', label: 'Squad (They) ✨' }
+                        ].map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              sfx.click();
+                              setCPronoun(p.id);
+                            }}
+                            className={`py-3.5 px-2 rounded-xl border-[3px] border-[#111] font-black text-xs sm:text-sm transition-all ${
+                              cPronoun === p.id
+                                ? 'bg-[#FF3366] text-white shadow-[3px_3px_0px_#111] -translate-y-0.5'
+                                : 'bg-[#FFFDF5] hover:bg-neutral-100'
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Real Portrait Avatar Picker + Custom URL */}
+                  <div>
+                    <label className="block font-black text-sm mb-2">
+                      {lang === 'en'
+                        ? '3. Choose Your Real Portrait Card (Or Paste Custom Photo URL)'
+                        : '3. உங்க புரொபைல் கார்டை தேர்ந்தெடுங்க'}
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3 mb-3">
+                      {AVATAR_BADGES.map((av) => {
+                        const selected = cAvatar === av.id && !cCustomAvatarUrl;
+                        return (
+                          <button
+                            key={av.id}
+                            type="button"
+                            onClick={() => {
+                              sfx.click();
+                              setCAvatar(av.id);
+                              setCCustomAvatarUrl('');
+                            }}
+                            className={`group relative rounded-2xl border-[3px] border-[#111] overflow-hidden transition-all ${
+                              selected
+                                ? 'shadow-[4px_4px_0px_#111] -translate-y-1 ring-4 ring-[#B8FF01]'
+                                : 'opacity-80 hover:opacity-100'
+                            }`}
+                          >
+                            <div className="h-20 w-full bg-neutral-900 relative">
+                              <img
+                                src={av.img}
+                                alt={av.label}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                              />
+                              <span className="absolute bottom-1 right-1 text-base bg-white rounded-md px-1 border border-[#111]">
+                                {av.emoji}
+                              </span>
+                            </div>
+                            <div
+                              style={{ backgroundColor: av.bg }}
+                              className="py-1 px-1 text-center font-black text-[10px] border-t-2 border-[#111] truncate"
+                            >
+                              {av.label}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Camera className="w-4 h-4 text-neutral-500 shrink-0" />
+                      <input
+                        type="url"
+                        value={cCustomAvatarUrl}
+                        onChange={(e) => setCCustomAvatarUrl(e.target.value)}
+                        placeholder="Optional: Paste your own Instagram/Profile Photo URL..."
+                        className="w-full px-3 py-2 rounded-xl bg-[#FFFDF5] border-2 border-[#111] text-xs font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Theme Selector */}
+                  <div>
+                    <label className="block font-black text-sm mb-2">
+                      {lang === 'en' ? '4. Pick Squad Challenge Mode' : '4. சவால் தீம் (Theme)'}
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {QUIZ_THEMES.map((theme) => (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          onClick={() => {
+                            sfx.click();
+                            setCTheme(theme.id);
+                          }}
+                          className={`p-4 rounded-2xl border-[3px] border-[#111] text-left transition-all ${
+                            cTheme === theme.id
+                              ? 'shadow-[4px_4px_0px_#111] -translate-y-1 bg-[#FFFDF5]'
+                              : 'bg-white opacity-80 hover:opacity-100'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span
+                              style={{ backgroundColor: theme.color }}
+                              className="w-9 h-9 rounded-xl border-2 border-[#111] flex items-center justify-center text-lg"
+                            >
+                              {theme.icon}
+                            </span>
+                            {cTheme === theme.id && (
+                              <span className="px-2 py-0.5 rounded-full bg-[#111] text-[#B8FF01] font-black text-[10px]">
+                                ACTIVE
+                              </span>
+                            )}
+                          </div>
+                          <div className="font-black text-sm">
+                            {lang === 'en' ? theme.enTitle : theme.desiTitle}
+                          </div>
+                          <div className="text-xs font-bold text-neutral-600 mt-1">
+                            {lang === 'en' ? theme.enDesc : theme.desiDesc}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Pass Cut-Off & Recovery PIN */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-2xl bg-[#FFFDF5] border-[3px] border-[#111] shadow-[3px_3px_0px_#111]">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-black text-sm">5. Pass Cut-Off Score</span>
+                        <span className="px-3 py-1 rounded-xl bg-[#FF3366] text-white border-2 border-[#111] font-black text-sm">
+                          {cPassScore} / 10
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="4"
+                        max="10"
+                        value={cPassScore}
+                        onChange={(e) => setCPassScore(Number(e.target.value))}
+                        className="w-full accent-[#FF3366] cursor-pointer"
+                      />
+                      <p className="text-xs font-bold text-neutral-600 mt-1">
+                        Friends scoring under {cPassScore}/10 get slammed with the BLOCKED stamp!
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-[#00E5FF]/20 border-[3px] border-[#111] shadow-[3px_3px_0px_#111] flex items-center justify-between">
+                      <div>
+                        <div className="font-black text-sm flex items-center gap-1.5">
+                          <Lock className="w-4 h-4" /> Creator 4-Digit Admin PIN
+                        </div>
+                        <p className="text-xs font-bold text-neutral-700 mt-1">
+                          Save this PIN to unlock scoreboard moderation from any mobile browser.
+                        </p>
+                      </div>
+                      <div className="px-3.5 py-2 rounded-xl bg-white border-[3px] border-[#111] font-mono font-black text-xl">
+                        {cPin}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-4 rounded-2xl bg-[#B8FF01] hover:bg-[#a6e800] border-[3px] border-[#111] shadow-[5px_5px_0px_#111] active:translate-y-1 font-black text-lg flex items-center justify-center gap-2"
+                  >
+                    {lang === 'en'
+                      ? 'Next: Pick Your 10 Photo Trading Cards'
+                      : 'அடுத்து: 10 கேள்விகளுக்கு உங்க பதிலை தேர்வு செய்யுங்க'}
+                    <ArrowRight className="w-6 h-6" />
+                  </button>
+                </form>
+              </div>
+            ) : (
+              /* STEP 2: 10-QUESTION PHOTO TRADING CARD PICKER */
+              <div className="bg-white border-[3px] border-[#111] rounded-3xl p-5 sm:p-8 shadow-[6px_6px_0px_#111]">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                  <button
+                    onClick={() => {
+                      sfx.click();
+                      setCreatorStep(1);
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-[#FFFDF5] border-2 border-[#111] font-black text-xs flex items-center gap-1"
+                  >
+                    <ArrowLeft className="w-4 h-4" /> Back
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 rounded-full bg-[#B8FF01] border-2 border-[#111] font-black text-xs">
+                      {cQuestions.filter((q) => q.correctOptionId).length} / 10 Picked
+                    </span>
+                    <span className="px-3 py-1 rounded-full bg-[#FF3366] text-white border-2 border-[#111] font-black text-xs">
+                      ⚠️ {cQuestions.filter((q) => q.isDealbreaker).length}/2 Dealbreakers
+                    </span>
+                  </div>
+                </div>
+
+                {/* Question Number Pills */}
+                <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 mb-6">
+                  {cQuestions.map((q, idx) => {
+                    const isCurrent = idx === currentQIndex;
+                    const isAnswered = !!q.correctOptionId;
+                    return (
+                      <button
+                        key={q.id + idx}
+                        onClick={() => {
+                          sfx.click();
+                          setCurrentQIndex(idx);
+                        }}
+                        className={`py-2 rounded-xl border-[2.5px] border-[#111] font-black text-xs relative transition-all ${
+                          isCurrent
+                            ? 'bg-[#111] text-[#B8FF01] -translate-y-1 shadow-[2px_2px_0px_#FF3366]'
+                            : isAnswered
+                            ? 'bg-[#B8FF01] text-[#111]'
+                            : 'bg-[#FFFDF5] text-neutral-600'
+                        }`}
+                      >
+                        #{idx + 1}
+                        {q.isDealbreaker && (
+                          <span className="absolute -top-1.5 -right-1 text-xs">⚠️</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Active Visual Question Card */}
+                {(() => {
+                  const activeQ = cQuestions[currentQIndex];
+                  return (
+                    <div className="p-4 sm:p-6 rounded-3xl bg-[#FFFDF5] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] mb-6">
+                      {/* Question Banner Header with Real Photo */}
+                      <div className="relative h-28 sm:h-36 rounded-2xl border-[3px] border-[#111] overflow-hidden mb-4 bg-neutral-900">
+                        <img
+                          src={activeQ.bannerImg}
+                          alt={activeQ.category}
+                          className="w-full h-full object-cover opacity-65"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-transparent p-4 flex flex-col justify-between">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="px-3 py-1 rounded-lg bg-[#00E5FF] text-[#111] border-2 border-[#111] font-black text-xs uppercase">
+                              Q{currentQIndex + 1} • {activeQ.category}
+                            </span>
+
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={handleSwapQuestion}
+                                className="px-3 py-1.5 rounded-xl bg-[#FFB800] text-[#111] border-2 border-[#111] font-black text-xs flex items-center gap-1 shadow-[2px_2px_0px_#111]"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                {lang === 'en' ? 'Swap Question (14 Pool)' : 'வேற கேள்வி மாத்து'}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  sfx.click();
+                                  setShowCustomModal(true);
+                                }}
+                                className="px-3 py-1.5 rounded-xl bg-white text-[#111] border-2 border-[#111] font-black text-xs flex items-center gap-1 shadow-[2px_2px_0px_#111]"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                {lang === 'en' ? 'Custom Q' : 'சொந்த கேள்வி'}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={handleToggleDealbreaker}
+                                className={`px-3 py-1.5 rounded-xl border-2 border-[#111] font-black text-xs flex items-center gap-1 shadow-[2px_2px_0px_#111] ${
+                                  activeQ.isDealbreaker
+                                    ? 'bg-[#FF3366] text-white'
+                                    : 'bg-white text-[#111]'
+                                }`}
+                              >
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                {activeQ.isDealbreaker ? 'Dealbreaker ON ⚠️' : 'Dealbreaker'}
+                              </button>
+                            </div>
+                          </div>
+
+                          <h3 className="text-white font-black text-lg sm:text-2xl leading-snug drop-shadow">
+                            {formatQuestionText(
+                              lang === 'en' ? activeQ.en : activeQ.desi,
+                              cName,
+                              cPronoun
+                            )}
+                          </h3>
+                        </div>
+                      </div>
+
+                      {/* 4 Interactive 3D Photo Trading Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {activeQ.options.map((opt) => (
+                          <TiltTradingCard
+                            key={opt.id}
+                            opt={opt}
+                            lang={lang}
+                            creatorName={cName}
+                            pronoun={cPronoun}
+                            isSelected={activeQ.correctOptionId === opt.id}
+                            badgeStatus={null}
+                            onSelect={handleSelectCreatorAnswer}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Builder Footer */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={currentQIndex === 0}
+                      onClick={() => {
+                        sfx.click();
+                        setCurrentQIndex((i) => Math.max(0, i - 1));
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-white border-[2.5px] border-[#111] font-black text-sm disabled:opacity-40"
+                    >
+                      ← Prev
+                    </button>
+                    <button
+                      type="button"
+                      disabled={currentQIndex === 9}
+                      onClick={() => {
+                        sfx.click();
+                        setCurrentQIndex((i) => Math.min(9, i + 1));
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-white border-[2.5px] border-[#111] font-black text-sm disabled:opacity-40"
+                    >
+                      Next →
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handlePublishQuiz}
+                    className="px-6 py-3.5 rounded-2xl bg-[#FF3366] text-white border-[3px] border-[#111] shadow-[5px_5px_0px_#111] active:translate-y-0.5 font-black text-base flex items-center gap-2"
+                  >
+                    <Sparkles className="w-5 h-5" />
+                    {lang === 'en'
+                      ? 'Publish Squad Quiz & Get Link 🚀'
+                      : 'குவிஸை வெளியிட்டு லிங்க் எடு 🚀'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================================================================== */}
+        {/* VIEW 2: SHARE HUB & WHATSAPP/IG DYNAMIC CARD */}
+        {/* ================================================================== */}
+        {mode === 'share' && (
+          <div className="bg-white border-[3px] border-[#111] rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_#111]">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+              <div>
+                <span className="inline-block px-3 py-1 rounded-full bg-[#B8FF01] border-2 border-[#111] font-black text-xs uppercase mb-1">
+                  SQUAD QUIZ LIVE • #{activeQuiz.id}
+                </span>
+                <h1 className="text-2xl sm:text-3xl font-black">
+                  Share {activeQuiz.creatorName}&apos;s College Audit ⚡
+                </h1>
+              </div>
+              <div className="px-4 py-2 rounded-2xl bg-[#FFFDF5] border-[3px] border-[#111] text-right">
+                <div className="text-[10px] font-black text-neutral-500">CREATOR PIN</div>
+                <div className="font-mono font-black text-lg">{activeQuiz.pin}</div>
+              </div>
+            </div>
+
+            {/* Social OG Preview Card with Real Photo */}
+            <div className="mb-6">
+              <label className="block font-black text-xs uppercase text-neutral-600 mb-2">
+                📱 WhatsApp Group & Instagram Story Link Preview:
+              </label>
+              <div className="max-w-xl rounded-2xl bg-[#111] text-white border-[3px] border-[#111] p-4 shadow-[5px_5px_0px_#FF3366] flex items-center gap-4">
+                <img
+                  src={activeQuiz.customAvatarUrl || activeAvatar.img}
+                  alt={activeQuiz.creatorName}
+                  className="w-20 h-20 rounded-2xl object-cover border-2 border-[#B8FF01] shrink-0"
+                />
+                <div className="min-w-0">
+                  <div className="text-[11px] font-black text-[#B8FF01] uppercase">
+                    BLOCK.YOUTEST.ME • COLLEGE EDITION
+                  </div>
+                  <h3 className="font-black text-base sm:text-lg leading-tight truncate">
+                    ⚠️ {activeQuiz.creatorName} is auditing the College Gang!
+                  </h3>
+                  <p className="text-xs text-neutral-300 mt-1">
+                    Guess my Favorite Actor, Cartoon, Biryani & Bench Spot! Score{' '}
+                    {activeQuiz.passScore}/10 or get BLOCKED 🚫
+                  </p>
+                  <div className="mt-2 text-xs font-mono text-[#00E5FF] truncate">{shareUrl}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                onClick={async () => {
+                  sfx.correct(2);
+                  await copyTextBulletproof(shareUrl);
+                  showToast('Quiz Link Copied! Paste in your College WhatsApp Group 📋', 'success');
+                }}
+                className="py-3.5 px-4 rounded-2xl bg-[#B8FF01] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] font-black text-sm flex items-center justify-center gap-2"
+              >
+                <Copy className="w-4 h-4" /> Copy Viral Link
+              </button>
+
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  `🔥 *${activeQuiz.creatorName}'s College Squad Block Test!*\nGuess my favorite Hero, Cartoon, Food & Bench Spot! Score *${activeQuiz.passScore}/10* or get BLOCKED 🚫👇\n${shareUrl}`
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="py-3.5 px-4 rounded-2xl bg-[#25D366] text-[#111] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] font-black text-sm flex items-center justify-center gap-2"
+              >
+                <MessageCircle className="w-4 h-4" /> Share on WhatsApp
+              </a>
+
+              <button
+                onClick={() => {
+                  sfx.click();
+                  setPlayerStep('entry');
+                  setMode('play');
+                }}
+                className="py-3.5 px-4 rounded-2xl bg-[#FF3366] text-white border-[3px] border-[#111] shadow-[4px_4px_0px_#111] font-black text-sm flex items-center justify-center gap-2"
+              >
+                <Play className="w-4 h-4" /> Test Play Now
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ================================================================== */}
+        {/* VIEW 3: FRIEND GAMEPLAY (3D CARDS + STREAK METER + RADAR RESULTS) */}
+        {/* ================================================================== */}
+        {mode === 'play' && (
+          <div>
+            {playerStep === 'entry' && (
+              <div className="bg-white border-[3px] border-[#111] rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_#111] max-w-2xl mx-auto">
+                <div className="flex flex-col items-center text-center mb-6">
+                  <div className="relative mb-3">
+                    <img
+                      src={activeQuiz.customAvatarUrl || activeAvatar.img}
+                      alt={activeQuiz.creatorName}
+                      className="w-24 h-24 rounded-3xl object-cover border-[3px] border-[#111] shadow-[4px_4px_0px_#111]"
+                    />
+                    <span className="absolute -bottom-2 -right-2 w-9 h-9 rounded-xl bg-[#B8FF01] border-2 border-[#111] flex items-center justify-center text-lg">
+                      {activeAvatar.emoji}
+                    </span>
+                  </div>
+
+                  <span className="px-3 py-1 rounded-full bg-[#FF3366] text-white border-2 border-[#111] font-black text-xs uppercase">
+                    {lang === 'en' ? activeTheme.enTitle : activeTheme.desiTitle} • #{activeQuiz.id}
+                  </span>
+                  <h1 className="text-2xl sm:text-3xl font-black mt-2">
+                    {lang === 'en'
+                      ? `Do You Really Know ${activeQuiz.creatorName}?`
+                      : `உங்களுக்கு ${activeQuiz.creatorName} பத்தி உண்மையிலேயே தெரியுமா?`}
+                  </h1>
+                  <p className="text-xs sm:text-sm font-bold text-neutral-600 mt-1">
+                    {lang === 'en'
+                      ? `Pass Mark: ${activeQuiz.passScore}/10 • Build Combo Streaks for Bonus XP • Don't miss Dealbreakers!`
+                      : `பாஸ் மார்க்: ${activeQuiz.passScore}/10 • வேகமா பதில் சொல்லி Combo XP அள்ளுங்க!`}
+                  </p>
+                </div>
+
+                <form onSubmit={handleStartFriendPlay} className="space-y-5">
+                  <div>
+                    <label className="block font-black text-sm mb-2">
+                      {lang === 'en' ? '1. Your Name / Squad Nickname *' : '1. உங்க பெயர் *'}
+                    </label>
+                    <input
+                      type="text"
+                      value={friendName}
+                      onChange={(e) => setFriendName(e.target.value)}
+                      placeholder="e.g., Vignesh, Surya_07, Keerthi..."
+                      maxLength={22}
+                      className="w-full px-4 py-3.5 rounded-xl bg-[#FFFDF5] border-[3px] border-[#111] shadow-[3px_3px_0px_#111] font-bold text-base focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Player Portrait Picker */}
+                  <div>
+                    <label className="block font-black text-sm mb-2">
+                      {lang === 'en' ? '2. Pick Your Player Avatar' : '2. உங்க அவதாரை தேர்வு செய்யுங்க'}
+                    </label>
+                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                      {AVATAR_BADGES.map((av) => (
+                        <button
+                          key={av.id}
+                          type="button"
+                          onClick={() => {
+                            sfx.click();
+                            setFriendAvatar(av.id);
+                          }}
+                          className={`rounded-xl border-2 border-[#111] overflow-hidden transition-all ${
+                            friendAvatar === av.id
+                              ? 'ring-4 ring-[#FF3366] -translate-y-1 shadow-[3px_3px_0px_#111]'
+                              : 'opacity-75 hover:opacity-100'
+                          }`}
+                        >
+                          <img src={av.img} alt={av.label} className="w-full h-12 object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Relationship Tag */}
+                  <div>
+                    <label className="block font-black text-sm mb-2">
+                      {lang === 'en'
+                        ? `3. Your Bond with ${activeQuiz.creatorName}`
+                        : `3. ${activeQuiz.creatorName} கூட உங்க நட்பு`}
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                      {RELATIONSHIP_TAGS.map((tag) => (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => {
+                            sfx.click();
+                            setRelationshipId(tag.id);
+                          }}
+                          className={`p-3 rounded-xl border-[2.5px] border-[#111] font-black text-xs text-left flex items-center gap-2 transition-all ${
+                            relationshipId === tag.id
+                              ? 'bg-[#B8FF01] shadow-[3px_3px_0px_#111] -translate-y-0.5'
+                              : 'bg-[#FFFDF5]'
+                          }`}
+                        >
+                          <span className="text-lg">{tag.emoji}</span>
+                          <span>{lang === 'en' ? tag.en : tag.desi}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-4 rounded-2xl bg-[#FF3366] text-white border-[3px] border-[#111] shadow-[5px_5px_0px_#111] active:translate-y-1 font-black text-lg flex items-center justify-center gap-2"
+                  >
+                    {lang === 'en'
+                      ? 'Start 3D Trading Card Challenge 🚀'
+                      : 'சோதனையை தொடங்கு மச்சான்! 🚀'}
+                    <ArrowRight className="w-5 h-5" />
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {playerStep === 'quiz' && (
+              /* ULTRA-INTERACTIVE 3D TRADING CARD GAMEPLAY WITH STREAK & STOPWATCH */
+              <div className="relative bg-white border-[3px] border-[#111] rounded-3xl p-5 sm:p-7 shadow-[6px_6px_0px_#111] max-w-3xl mx-auto">
+                {/* Floating Kinetic XP / Streak Popup */}
+                {kineticPopup && (
+                  <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-bounce">
+                    <div
+                      className={`px-5 py-2.5 rounded-2xl border-[3px] border-[#111] shadow-[5px_5px_0px_#111] font-black text-sm sm:text-base ${
+                        kineticPopup.good ? 'bg-[#B8FF01] text-[#111]' : 'bg-[#FF3366] text-white'
+                      }`}
+                    >
+                      {kineticPopup.text}
+                    </div>
+                  </div>
+                )}
+
+                {(() => {
+                  const q = activeQuiz.questions[pQuestionIdx];
+                  const progressPct = ((pQuestionIdx + 1) / activeQuiz.questions.length) * 100;
+                  return (
+                    <>
+                      {/* Top HUD: Question Counter, Combo Flame Meter, XP & Timer */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-1 rounded-xl bg-[#111] text-white font-black text-xs">
+                            Q{pQuestionIdx + 1} / {activeQuiz.questions.length}
+                          </span>
+                          <span className="px-3 py-1 rounded-xl bg-[#FFFDF5] border-2 border-[#111] font-black text-xs flex items-center gap-1">
+                            <Timer className="w-3.5 h-3.5 text-[#FF3366]" />
+                            {questionElapsedSec.toFixed(1)}s
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {/* Combo Streak Pill */}
+                          <div
+                            className={`px-3 py-1 rounded-xl border-2 border-[#111] font-black text-xs flex items-center gap-1 transition-all ${
+                              comboStreak >= 2
+                                ? 'bg-[#FFB800] scale-105 shadow-[2px_2px_0px_#111]'
+                                : 'bg-[#FFFDF5]'
+                            }`}
+                          >
+                            <Flame className="w-4 h-4 text-[#FF3366] fill-[#FF3366]" />
+                            {comboStreak}x Streak
+                          </div>
+
+                          {/* XP Counter */}
+                          <div className="px-3 py-1 rounded-xl bg-[#00E5FF] border-2 border-[#111] font-black text-xs">
+                            ⚡ {xpPoints} XP
+                          </div>
+
+                          {q.isDealbreaker && (
+                            <span className="px-3 py-1 rounded-xl bg-[#FF3366] text-white border-2 border-[#111] font-black text-xs animate-pulse">
+                              ⚠️ DEALBREAKER
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="w-full h-3.5 rounded-full bg-[#FFFDF5] border-2 border-[#111] overflow-hidden mb-5">
+                        <div
+                          className="h-full bg-[#B8FF01] border-r-2 border-[#111] transition-all duration-300"
+                          style={{ width: `${progressPct}%` }}
+                        />
+                      </div>
+
+                      {/* Question Banner with Real Photography */}
+                      <div className="relative h-28 sm:h-36 rounded-2xl border-[3px] border-[#111] overflow-hidden mb-5 bg-neutral-900">
+                        <img
+                          src={q.bannerImg}
+                          alt={q.category}
+                          className="w-full h-full object-cover opacity-65"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-4 flex flex-col justify-end">
+                          <span className="text-[11px] font-black uppercase text-[#B8FF01] tracking-wider">
+                            {q.category}
+                          </span>
+                          <h2 className="text-white text-lg sm:text-2xl font-black leading-snug">
+                            {formatQuestionText(
+                              lang === 'en' ? q.en : q.desi,
+                              activeQuiz.creatorName,
+                              activeQuiz.pronoun
+                            )}
+                          </h2>
+                        </div>
+                      </div>
+
+                      {/* 4 Interactive 3D Photo Trading Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {q.options.map((opt) => {
+                          let badgeStatus = null;
+                          if (lastSelectedOption && instantFeedback) {
+                            if (opt.id === q.correctOptionId) badgeStatus = 'correct';
+                            else if (opt.id === lastSelectedOption) badgeStatus = 'wrong';
+                          }
+                          return (
+                            <TiltTradingCard
+                              key={opt.id}
+                              opt={opt}
+                              lang={lang}
+                              creatorName={activeQuiz.creatorName}
+                              pronoun={activeQuiz.pronoun}
+                              isSelected={lastSelectedOption === opt.id}
+                              badgeStatus={badgeStatus}
+                              onSelect={handleFriendPickOption}
+                            />
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+
+            {playerStep === 'result' && latestAttempt && (
+              /* ============================================================== */
+              /* THE MOTION GRAPHICS RESULT DASHBOARD (STAMP + RADAR + GAUGE)   */
+              /* ============================================================== */
+              <div className="space-y-6">
+                {(() => {
+                  const isSafe =
+                    latestAttempt.score >= activeQuiz.passScore &&
+                    !latestAttempt.missedDealbreaker;
+                  const radarMetrics = computeRadarMetrics(
+                    activeQuiz.questions,
+                    latestAttempt.answers
+                  );
+                  const scorePct = Math.round((latestAttempt.score / latestAttempt.total) * 100);
+
+                  return (
+                    <>
+                      {/* Giant Verdict Hero Banner with Animated Physics Rubber Stamp */}
+                      <div
+                        className={`relative overflow-hidden border-[3px] border-[#111] rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_#111] ${
+                          isSafe ? 'bg-[#B8FF01]' : 'bg-[#FF3366] text-white'
+                        }`}
+                      >
+                        {/* Animated Rubber Stamp Overlay */}
+                        <div
+                          style={{
+                            transform: stampSlammed
+                              ? 'rotate(-8deg) scale(1)'
+                              : 'rotate(-25deg) scale(2.4)',
+                            opacity: stampSlammed ? 1 : 0,
+                            transition: 'all 380ms cubic-bezier(0.22, 1.4, 0.36, 1)'
+                          }}
+                          className="hidden md:flex absolute right-64 top-7 z-20 px-5 py-2 rounded-xl border-[4px] border-[#111] bg-white text-[#111] shadow-[4px_4px_0px_#111] font-black text-lg tracking-wider uppercase pointer-events-none"
+                        >
+                          {isSafe ? '✅ APPROVED MACHAN!' : '🚫 BLOCKED FOREVER!'}
+                        </div>
+
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                          <div>
+                            <span className="inline-block px-3 py-1 rounded-full bg-[#111] text-[#B8FF01] font-black text-xs uppercase mb-2">
+                              OFFICIAL SQUAD AUDIT VERDICT • #{activeQuiz.id}
+                            </span>
+                            <h1 className="text-3xl sm:text-4xl font-black leading-tight">
+                              {isSafe
+                                ? lang === 'en'
+                                  ? `CERTIFIED CHUDDY BUDDY! 🔥`
+                                  : `நீ உண்மையான உயிர் நண்பன் மச்சான்! 🔥`
+                                : lang === 'en'
+                                ? `STRAIGHT TO THE BLOCK LIST! 🚫`
+                                : `நேரா வாட்ஸ்அப் BLOCK LIST தான்! 🚫`}
+                            </h1>
+                            <div className="flex flex-wrap items-center gap-2 mt-3">
+                              <span className="px-3 py-1 rounded-lg bg-black/20 font-black text-xs">
+                                ⚡ {latestAttempt.xpEarned} XP Earned
+                              </span>
+                              <span className="px-3 py-1 rounded-lg bg-black/20 font-black text-xs">
+                                🔥 {latestAttempt.maxStreak}x Max Streak
+                              </span>
+                              <span className="px-3 py-1 rounded-lg bg-black/20 font-black text-xs">
+                                ⏱️ {latestAttempt.avgTimeSec}s Avg Speed
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="px-6 py-4 rounded-3xl bg-white text-[#111] border-[3px] border-[#111] shadow-[5px_5px_0px_#111] text-center shrink-0">
+                            <div className="text-xs font-black uppercase text-neutral-500">
+                              FINAL SCORE
+                            </div>
+                            <div className="text-4xl font-black">
+                              {latestAttempt.score} / {latestAttempt.total}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3 mt-6 pt-5 border-t-2 border-[#111]/20">
+                          <button
+                            onClick={handleDownloadReceipt}
+                            className="px-5 py-3 rounded-2xl bg-[#111] text-[#B8FF01] border-[2.5px] border-[#111] shadow-[3px_3px_0px_#FFF] font-black text-sm flex items-center gap-2"
+                          >
+                            <Download className="w-4 h-4" />
+                            Download Squad Receipt (PNG)
+                          </button>
+                          <button
+                            onClick={() => {
+                              sfx.click();
+                              setMode('scoreboard');
+                            }}
+                            className="px-5 py-3 rounded-2xl bg-white text-[#111] border-[2.5px] border-[#111] font-black text-sm flex items-center gap-2"
+                          >
+                            <BarChart3 className="w-4 h-4" />
+                            Open Squad Leaderboard & Graphs
+                          </button>
+                          <button
+                            onClick={() => {
+                              sfx.click();
+                              setCreatorStep(1);
+                              setMode('create');
+                            }}
+                            className="px-5 py-3 rounded-2xl bg-[#00E5FF] text-[#111] border-[2.5px] border-[#111] font-black text-sm flex items-center gap-2"
+                          >
+                            <PlusCircle className="w-4 h-4" />
+                            Create Your Own Quiz
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* MOTION GRAPHICS ROW: 5-AXIS RADAR CHART + SPEEDOMETER GAUGE */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-white border-[3px] border-[#111] rounded-3xl p-5 sm:p-6 shadow-[5px_5px_0px_#111] flex flex-col items-center">
+                          <div className="w-full flex items-center justify-between mb-2">
+                            <span className="font-black text-sm uppercase flex items-center gap-1.5">
+                              <Compass className="w-4 h-4 text-[#FF3366]" />
+                              5-Axis Squad Compatibility Radar
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-[#B8FF01] border border-[#111] font-black text-[10px]">
+                              LIVE SVG GRAPH
+                            </span>
+                          </div>
+                          <FriendshipRadarChart metrics={radarMetrics} lang={lang} />
+                        </div>
+
+                        <div className="bg-white border-[3px] border-[#111] rounded-3xl p-5 sm:p-6 shadow-[5px_5px_0px_#111] flex flex-col items-center justify-between">
+                          <div className="w-full flex items-center justify-between mb-2">
+                            <span className="font-black text-sm uppercase flex items-center gap-1.5">
+                              <Award className="w-4 h-4 text-[#FF3366]" />
+                              Friendship Sync Speedometer
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-[#00E5FF] border border-[#111] font-black text-[10px]">
+                              METER GAUGE
+                            </span>
+                          </div>
+                          <div className="my-auto py-2">
+                            <FriendshipSpeedometer
+                              scorePct={scorePct}
+                              isSafe={isSafe}
+                              lang={lang}
+                            />
+                          </div>
+                          <p className="text-xs font-bold text-neutral-600 text-center">
+                            {isSafe
+                              ? `${activeQuiz.creatorName} & ${latestAttempt.friendName} have certified Benchmate-level wavelength!`
+                              : `Uh oh! ${latestAttempt.friendName} failed ${activeQuiz.creatorName}'s pass mark!`}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* RECEIPT CANVAS & PHOTO ANSWER COMPARISON */}
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                        <div className="lg:col-span-5 bg-white border-[3px] border-[#111] rounded-3xl p-4 shadow-[5px_5px_0px_#111] flex flex-col items-center">
+                          <div className="w-full flex items-center justify-between mb-3">
+                            <span className="font-black text-xs uppercase">
+                              📸 Shareable IG Story Receipt
+                            </span>
+                            <button
+                              onClick={handleDownloadReceipt}
+                              className="px-3 py-1 rounded-lg bg-[#B8FF01] border-2 border-[#111] font-black text-xs flex items-center gap-1"
+                            >
+                              <Download className="w-3.5 h-3.5" /> Save PNG
+                            </button>
+                          </div>
+                          <canvas
+                            ref={receiptCanvasRef}
+                            className="w-full max-w-[340px] h-auto rounded-xl border-2 border-[#111]"
+                          />
+                        </div>
+
+                        <div className="lg:col-span-7 bg-white border-[3px] border-[#111] rounded-3xl p-5 sm:p-6 shadow-[5px_5px_0px_#111]">
+                          <h3 className="font-black text-lg mb-4">
+                            🃏 Visual Trading Card Answer Breakdown
+                          </h3>
+                          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+                            {activeQuiz.questions.map((q, idx) => {
+                              const pickedId = latestAttempt.answers[q.id];
+                              const pickedOpt = q.options.find((o) => o.id === pickedId);
+                              const correctOpt = q.options.find((o) => o.id === q.correctOptionId);
+                              const isRight = pickedId === q.correctOptionId;
+
+                              return (
+                                <div
+                                  key={q.id}
+                                  className={`p-3.5 rounded-2xl border-2 border-[#111] flex items-center gap-3.5 ${
+                                    isRight ? 'bg-[#B8FF01]/20' : 'bg-[#FF3366]/10'
+                                  }`}
+                                >
+                                  <img
+                                    src={(correctOpt || q.options[0]).img}
+                                    alt={q.category}
+                                    className="w-16 h-16 rounded-xl object-cover border-2 border-[#111] shrink-0"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-black text-xs uppercase text-neutral-600">
+                                        Q{idx + 1} • {q.category}
+                                      </span>
+                                      <span
+                                        className={`px-2 py-0.5 rounded-full text-[10px] font-black border border-[#111] ${
+                                          isRight ? 'bg-[#B8FF01]' : 'bg-[#FF3366] text-white'
+                                        }`}
+                                      >
+                                        {isRight ? 'MATCH ✅' : 'MISS ❌'}
+                                      </span>
+                                    </div>
+                                    <div className="text-xs font-bold mt-1">
+                                      <span className="font-black">Your Pick: </span>
+                                      {pickedOpt
+                                        ? `${pickedOpt.emoji} ${
+                                            lang === 'en' ? pickedOpt.en : pickedOpt.desi
+                                          }`
+                                        : 'None'}
+                                    </div>
+                                    {!isRight && correctOpt && (
+                                      <div className="text-xs font-black text-emerald-800 mt-0.5">
+                                        {activeQuiz.creatorName}&apos;s Pick: {correctOpt.emoji}{' '}
+                                        {lang === 'en' ? correctOpt.en : correctOpt.desi}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================================================================== */}
+        {/* VIEW 4: MOTION GRAPHICS ANALYTICS & LIVE SCOREBOARD */}
+        {/* ================================================================== */}
+        {mode === 'scoreboard' && (
+          <div className="space-y-6">
+            <div className="bg-white border-[3px] border-[#111] rounded-3xl p-6 shadow-[6px_6px_0px_#111]">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <div className="flex items-center gap-3.5">
+                  <img
+                    src={activeQuiz.customAvatarUrl || activeAvatar.img}
+                    alt={activeQuiz.creatorName}
+                    className="w-16 h-16 rounded-2xl object-cover border-[3px] border-[#111] shadow-[3px_3px_0px_#111]"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#B8FF01] border-2 border-[#111] font-black text-xs">
+                        #{activeQuiz.id}
+                      </span>
+                      <span className="text-xs font-black text-neutral-500 uppercase">
+                        Pass Cut-Off: {activeQuiz.passScore}/10
+                      </span>
+                    </div>
+                    <h1 className="text-2xl sm:text-3xl font-black">
+                      {activeQuiz.creatorName}&apos;s Squad Analytics & Board
+                    </h1>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleSimulateFriendAttempt}
+                    className="px-4 py-2 rounded-xl bg-[#00E5FF] border-2 border-[#111] shadow-[3px_3px_0px_#111] font-black text-xs flex items-center gap-1.5"
+                  >
+                    <UserPlus className="w-4 h-4" /> + Simulate Squad Friend
+                  </button>
+
+                  {isOwnerUnlocked ? (
+                    <span className="px-3.5 py-2 rounded-xl bg-[#B8FF01] border-2 border-[#111] font-black text-xs flex items-center gap-1.5">
+                      <Unlock className="w-4 h-4" /> Admin Unlocked (PIN: {activeQuiz.pin})
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        sfx.click();
+                        setShowPinModal(true);
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-[#FFB800] border-2 border-[#111] font-black text-xs flex items-center gap-1.5"
+                    >
+                      <Lock className="w-4 h-4" /> Admin PIN
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* MOTION GRAPHICS ANALYTICS SECTION (RADAR + HORIZONTAL ACCURACY BARS) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-7">
+                {/* Left: Squad Average Radar */}
+                <div className="lg:col-span-5 p-5 rounded-3xl bg-[#FFFDF5] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] flex flex-col items-center">
+                  <div className="w-full flex items-center justify-between mb-2">
+                    <span className="font-black text-xs uppercase">
+                      🕸️ Whole Squad Vibe Radar
+                    </span>
+                    <span className="font-black text-xs text-[#FF3366]">
+                      Avg: {boardAnalytics.avgScore}/10
+                    </span>
+                  </div>
+                  <FriendshipRadarChart metrics={boardAnalytics.avgRadar} lang={lang} />
+                </div>
+
+                {/* Right: Question-by-Question Animated Accuracy Bar Graph */}
+                <div className="lg:col-span-7 p-5 rounded-3xl bg-[#FFFDF5] border-[3px] border-[#111] shadow-[4px_4px_0px_#111]">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="font-black text-xs uppercase flex items-center gap-1.5">
+                      <BarChart3 className="w-4 h-4 text-[#FF3366]" />
+                      Question-by-Question Squad Accuracy Graph
+                    </span>
+                    <span className="text-[11px] font-bold text-neutral-500">
+                      Which question trapped your gang?
+                    </span>
+                  </div>
+
+                  <div className="space-y-2.5 max-h-[290px] overflow-y-auto pr-1">
+                    {boardAnalytics.questionStats.map((qs) => (
+                      <div key={qs.id} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-black">
+                          <span className="truncate">
+                            Q{qs.idx}. {qs.category}{' '}
+                            <span className="text-neutral-500 font-bold">({qs.rightLabel})</span>
+                          </span>
+                          <span
+                            className={
+                              qs.pct >= 70
+                                ? 'text-emerald-700'
+                                : qs.pct <= 40
+                                ? 'text-[#FF3366]'
+                                : 'text-amber-700'
+                            }
+                          >
+                            {qs.pct}% Guessed Right
+                          </span>
+                        </div>
+                        <div className="w-full h-3.5 rounded-lg bg-white border-2 border-[#111] overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-700 ${
+                              qs.pct >= 70
+                                ? 'bg-[#B8FF01]'
+                                : qs.pct <= 40
+                                ? 'bg-[#FF3366]'
+                                : 'bg-[#FFB800]'
+                            }`}
+                            style={{ width: `${Math.max(qs.pct, 6)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Admin Live Pass Cut-Off Slider */}
+              {isOwnerUnlocked && (
+                <div className="mb-5 p-3.5 rounded-2xl bg-[#FFFDF5] border-2 border-dashed border-[#111] flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-xs font-black flex items-center gap-1.5">
+                    <Sliders className="w-4 h-4 text-[#FF3366]" />
+                    Admin Control: Change Pass Score ({activeQuiz.passScore}/10) to dynamically
+                    re-filter the Block List:
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {[5, 6, 7, 8, 9].map((val) => (
+                      <button
+                        key={val}
+                        onClick={async () => {
+                          sfx.click();
+                          await saveQuizToCloud({ ...activeQuiz, passScore: val });
+                        }}
+                        className={`w-8 h-8 rounded-lg border-2 border-[#111] font-black text-xs ${
+                          activeQuiz.passScore === val ? 'bg-[#FF3366] text-white' : 'bg-white'
+                        }`}
+                      >
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Filter Tabs */}
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                {[
+                  { id: 'all', label: `All Squad (${boardAnalytics.total})` },
+                  { id: 'safe', label: `Approved Machans ✅ (${boardAnalytics.safeCount})` },
+                  { id: 'blocked', label: `Block List 🚫 (${boardAnalytics.blockCount})` },
+                  { id: 'dealbreaker', label: 'Missed Dealbreaker ⚠️' }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      sfx.click();
+                      setBoardFilter(tab.id);
+                    }}
+                    className={`px-3.5 py-2 rounded-xl border-2 border-[#111] font-black text-xs ${
+                      boardFilter === tab.id
+                        ? 'bg-[#111] text-[#B8FF01] shadow-[2px_2px_0px_#FF3366]'
+                        : 'bg-[#FFFDF5]'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Leaderboard Cards with Real Avatars, Streak & XP */}
+              <div className="space-y-3">
+                {filteredAttempts.map((att, idx) => {
+                  const isSafe =
+                    att.score >= activeQuiz.passScore && !att.missedDealbreaker;
+                  const rel =
+                    RELATIONSHIP_TAGS.find((r) => r.id === att.relationshipId) ||
+                    RELATIONSHIP_TAGS[0];
+                  const avObj =
+                    AVATAR_BADGES.find((a) => a.id === att.avatarId) ||
+                    AVATAR_BADGES[idx % AVATAR_BADGES.length];
+
+                  return (
+                    <div
+                      key={att.id}
+                      className="p-4 rounded-2xl bg-[#FFFDF5] border-[3px] border-[#111] shadow-[3px_3px_0px_#111] flex flex-wrap items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="relative">
+                          <img
+                            src={avObj.img}
+                            alt={att.friendName}
+                            className="w-12 h-12 rounded-2xl object-cover border-2 border-[#111]"
+                          />
+                          <span
+                            className={`absolute -top-1.5 -left-1.5 px-1.5 py-0.2 rounded-md border border-[#111] font-black text-[10px] ${
+                              isSafe ? 'bg-[#B8FF01]' : 'bg-[#FF3366] text-white'
+                            }`}
+                          >
+                            #{idx + 1}
+                          </span>
+                        </div>
+
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-black text-base">{att.friendName}</span>
+                            <span className="px-2 py-0.5 rounded-full bg-white border border-[#111] font-bold text-[11px]">
+                              {rel.emoji} {lang === 'en' ? rel.en : rel.desi}
+                            </span>
+                            {att.maxStreak >= 3 && (
+                              <span className="px-2 py-0.5 rounded-full bg-[#FFB800] border border-[#111] font-black text-[10px]">
+                                🔥 {att.maxStreak}x Streak
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs font-bold text-neutral-600 mt-0.5">
+                            {isSafe ? '✅ Approved Chuddy Buddy' : '🚫 On the Block List'} • ⚡{' '}
+                            {att.xpEarned || att.score * 110} XP • ⏱️ {att.avgTimeSec || 4.2}s avg
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 ml-auto">
+                        <div
+                          className={`px-3.5 py-1.5 rounded-xl border-2 border-[#111] font-black text-sm ${
+                            isSafe ? 'bg-[#B8FF01]' : 'bg-[#FF3366] text-white'
+                          }`}
+                        >
+                          {att.score} / {att.total}
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            sfx.click();
+                            setInspectedAttempt(att);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-white border-2 border-[#111] font-black text-xs flex items-center gap-1 hover:bg-[#00E5FF]/30"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> Inspect
+                        </button>
+
+                        {isOwnerUnlocked && (
+                          <button
+                            onClick={async () => {
+                              sfx.click();
+                              const updated = {
+                                ...activeQuiz,
+                                attempts: activeQuiz.attempts.filter((a) => a.id !== att.id)
+                              };
+                              await saveQuizToCloud(updated);
+                              showToast('Entry removed!', 'info');
+                            }}
+                            className="p-2 rounded-xl bg-white hover:bg-[#FF3366] hover:text-white border-2 border-[#111]"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* ==================================================================== */}
+      {/* MODAL 1: CUSTOM QUESTION BUILDER */}
+      {/* ==================================================================== */}
+      {showCustomModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border-[3px] border-[#111] rounded-3xl p-6 max-w-lg w-full shadow-[8px_8px_0px_#111]">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-xl">✍️ Add College Inside-Joke Question</h3>
+              <button
+                onClick={() => setShowCustomModal(false)}
+                className="p-1.5 rounded-lg border-2 border-[#111]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveCustomQuestion} className="space-y-4">
+              <input
+                type="text"
+                value={customQText}
+                onChange={(e) => setCustomQText(e.target.value)}
+                placeholder="e.g., What happened during our IV trip to Ooty?"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#FFFDF5] border-2 border-[#111] font-bold text-sm"
+              />
+              <div className="space-y-2">
+                {customOpts.map((o, idx) => (
+                  <div key={o.id} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={o.emoji}
+                      onChange={(e) => {
+                        const copy = [...customOpts];
+                        copy[idx].emoji = e.target.value;
+                        setCustomOpts(copy);
+                      }}
+                      className="w-12 text-center py-2 rounded-xl bg-[#FFFDF5] border-2 border-[#111]"
+                    />
+                    <input
+                      type="text"
+                      value={o.text}
+                      onChange={(e) => {
+                        const copy = [...customOpts];
+                        copy[idx].text = e.target.value;
+                        setCustomOpts(copy);
+                      }}
+                      placeholder={`Option ${idx + 1}...`}
+                      className="flex-1 px-3 py-2 rounded-xl bg-[#FFFDF5] border-2 border-[#111] font-bold text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl bg-[#B8FF01] border-[3px] border-[#111] font-black text-sm"
+              >
+                Save Custom Card Question ✅
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* MODAL 2: INSPECT FRIEND'S 10 ANSWERS + INDIVIDUAL RADAR */}
+      {/* ==================================================================== */}
+      {inspectedAttempt && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border-[3px] border-[#111] rounded-3xl p-6 max-w-2xl w-full shadow-[8px_8px_0px_#111] max-h-[88vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b-2 border-[#111]">
+              <div>
+                <h3 className="font-black text-xl">
+                  🔍 {inspectedAttempt.friendName}&apos;s Report ({inspectedAttempt.score}/10)
+                </h3>
+                <p className="text-xs font-bold text-neutral-600">
+                  Max Streak: 🔥 {inspectedAttempt.maxStreak || 3}x • Speed:{' '}
+                  {inspectedAttempt.avgTimeSec || 4.0}s
+                </p>
+              </div>
+              <button
+                onClick={() => setInspectedAttempt(null)}
+                className="p-1.5 rounded-lg border-2 border-[#111]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto space-y-2.5 my-4 pr-1">
+              {activeQuiz.questions.map((q, idx) => {
+                const pickedId = inspectedAttempt.answers?.[q.id];
+                const pickedOpt = q.options.find((o) => o.id === pickedId);
+                const rightOpt = q.options.find((o) => o.id === q.correctOptionId);
+                const isRight = pickedId === q.correctOptionId;
+
+                return (
+                  <div
+                    key={q.id}
+                    className={`p-3 rounded-xl border-2 border-[#111] flex items-center gap-3 text-xs ${
+                      isRight ? 'bg-[#B8FF01]/25' : 'bg-[#FF3366]/15'
+                    }`}
+                  >
+                    <img
+                      src={(pickedOpt || q.options[0]).img}
+                      alt=""
+                      className="w-12 h-12 rounded-lg object-cover border border-[#111] shrink-0"
+                    />
+                    <div className="flex-1">
+                      <div className="font-black">
+                        Q{idx + 1} ({q.category}):
+                      </div>
+                      <div>
+                        <span className="font-black">Picked: </span>
+                        {pickedOpt
+                          ? `${pickedOpt.emoji} ${lang === 'en' ? pickedOpt.en : pickedOpt.desi}`
+                          : 'None'}{' '}
+                        {isRight ? '✅' : '❌'}
+                      </div>
+                      {!isRight && rightOpt && (
+                        <div className="font-bold text-emerald-900">
+                          Correct: {rightOpt.emoji} {lang === 'en' ? rightOpt.en : rightOpt.desi}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => setInspectedAttempt(null)}
+              className="w-full py-2.5 rounded-xl bg-[#111] text-white font-black text-sm"
+            >
+              Close Report
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* MODAL 3: CREATOR PIN UNLOCK */}
+      {/* ==================================================================== */}
+      {showPinModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border-[3px] border-[#111] rounded-3xl p-6 max-w-sm w-full shadow-[8px_8px_0px_#111]">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-black text-lg">🔐 Creator Admin PIN</h3>
+              <button
+                onClick={() => setShowPinModal(false)}
+                className="p-1 rounded-lg border-2 border-[#111]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs font-bold text-neutral-600 mb-4">
+              Demo #Y0TJMqL PIN is <span className="underline font-black">4829</span>
+            </p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (pinInput.trim() === activeQuiz.pin) {
+                  sfx.fanfare();
+                  setUnlockedQuizzes((prev) => ({ ...prev, [activeQuiz.id]: true }));
+                  setShowPinModal(false);
+                  setPinInput('');
+                  showToast('Admin Mode Unlocked! 🔓', 'success');
+                } else {
+                  sfx.wrong();
+                  showToast('Wrong PIN! Try 4829 for demo.', 'error');
+                }
+              }}
+              className="space-y-3"
+            >
+              <input
+                type="text"
+                maxLength={4}
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                placeholder="4829"
+                className="w-full text-center font-mono font-black text-2xl py-2.5 rounded-xl bg-[#FFFDF5] border-[3px] border-[#111]"
+              />
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl bg-[#B8FF01] border-[3px] border-[#111] font-black text-sm"
+              >
+                Unlock Controls
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* MODAL 4: OPEN QUIZ BY CODE */}
+      {/* ==================================================================== */}
+      {showCodeModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border-[3px] border-[#111] rounded-3xl p-6 max-w-sm w-full shadow-[8px_8px_0px_#111]">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-black text-lg">🔎 Enter Squad Quiz Code</h3>
+              <button
+                onClick={() => setShowCodeModal(false)}
+                className="p-1 rounded-lg border-2 border-[#111]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const clean = codeSearchInput.replace('#', '').trim().toUpperCase();
+                const match = Object.values(quizzesMap).find((q) => q.id.toUpperCase() === clean);
+                if (match) {
+                  sfx.correct(2);
+                  setActiveQuizId(match.id);
+                  setPlayerStep('entry');
+                  setMode('play');
+                  setShowCodeModal(false);
+                  setCodeSearchInput('');
+                  showToast(`Loaded ${match.creatorName}'s Squad Quiz!`, 'success');
+                } else {
+                  sfx.wrong();
+                  showToast('Code not found! Try #Y0TJMqL', 'error');
+                }
+              }}
+              className="space-y-3"
+            >
+              <input
+                type="text"
+                value={codeSearchInput}
+                onChange={(e) => setCodeSearchInput(e.target.value)}
+                placeholder="Y0TJMqL"
+                className="w-full text-center font-mono font-black text-xl py-2.5 rounded-xl bg-[#FFFDF5] border-[3px] border-[#111]"
+              />
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl bg-[#00E5FF] border-[3px] border-[#111] font-black text-sm"
+              >
+                Load Quiz →
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

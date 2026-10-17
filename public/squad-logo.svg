@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+<title id="title">Don't Block Me College Squad</title>
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff3366"/><stop offset="1" stop-color="#ff8a3d"/></linearGradient></defs>
+<rect x="5" y="5" width="118" height="118" rx="29" fill="url(#g)" stroke="#111" stroke-width="8"/>
+<path d="M64 25a34 34 0 0 0-27 55l-8 17 20-4a34 34 0 1 0 15-68Z" fill="#fffdf5" stroke="#111" stroke-width="6" stroke-linejoin="round"/>
+<path d="M49 47l30 34M79 47L49 81" stroke="#ff3366" stroke-width="10" stroke-linecap="round"/>
+<path d="M90 24l4 10 10 4-10 4-4 10-4-10-10-4 10-4Z" fill="#b8ff01" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+</svg>
