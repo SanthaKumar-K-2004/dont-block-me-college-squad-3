@@ -1,4 +1,5 @@
 import './app.css';
+import { mergeAttempts, isValidAttempt } from './attempts.js';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Sparkles, Volume2, VolumeX, Share2, Copy, RefreshCw, PlusCircle,
@@ -1909,12 +1910,8 @@ export default function App() {
         setQuizzesMap((prev) => {
           const quiz = prev[quizId];
           if (!quiz) return prev;
-          const merged = new Map();
           // Cloud records win on duplicate IDs; legacy embedded attempts remain visible.
-          [...(quiz.attempts || []), ...remoteAttempts].forEach((attempt) => {
-            if (attempt?.id) merged.set(attempt.id, attempt);
-          });
-          const attempts = [...merged.values()].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+          const attempts = mergeAttempts(quiz.attempts || [], remoteAttempts);
           return { ...prev, [quizId]: { ...quiz, attempts } };
         });
       }, (error) => {
@@ -1969,6 +1966,10 @@ export default function App() {
       // Each attempt has a stable document ID: concurrent players cannot overwrite
       // each other's scores, retries are idempotent, and the quiz document stays small.
       for (const attempt of attemptsToWrite) {
+        if (!isValidAttempt(attempt, quizObj.questions?.length || attempt.total)) {
+          console.warn('Skipped malformed scoreboard attempt:', attempt?.id);
+          continue;
+        }
         const attemptRef = doc(
           db, 'artifacts', appId, 'public', 'data', 'quizzes', quizObj.id, 'attempts', attempt.id
         );
