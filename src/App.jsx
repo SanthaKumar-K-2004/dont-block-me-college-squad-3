@@ -1522,6 +1522,7 @@ export default function App() {
       if (raw) {
         const saved = JSON.parse(raw);
         if (saved && typeof saved === 'object') {
+          delete saved.Y0TJMqL; // legacy seeded demo quiz; never restore fake leaderboard entries
           setQuizzesMap((prev) => ({ ...prev, ...saved }));
         }
       }
@@ -1536,6 +1537,7 @@ export default function App() {
       try {
         const incoming = JSON.parse(event.newValue);
         if (incoming && typeof incoming === 'object') {
+          delete incoming.Y0TJMqL;
           setQuizzesMap((prev) => ({ ...prev, ...incoming }));
         }
       } catch (err) {
@@ -1664,7 +1666,7 @@ export default function App() {
         const fetched = {};
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          if (data && data.id) {
+          if (data && data.id && data.id !== 'Y0TJMqL') {
             try {
               fetched[data.id] = {
                 ...data,
@@ -3864,7 +3866,7 @@ export default function App() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const clean = codeSearchInput.replace('#', '').trim().toUpperCase();
-                const match = Object.values(quizzesMap).find((q) => q.id.toUpperCase() === clean);
+                const match = Object.values(quizzesMap).find((q) => q.id !== 'Y0TJMqL' && q.id.toUpperCase() === clean);
                 if (match) {
                   sfx.correct(2);
                   setActiveQuizId(match.id);
