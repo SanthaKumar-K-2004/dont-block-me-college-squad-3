@@ -2658,7 +2658,7 @@ export default function App() {
               className="px-3.5 py-2 rounded-xl bg-[#FFB800] border-[2.5px] border-[#111] shadow-[3px_3px_0px_#111] active:translate-y-0.5 font-black text-xs sm:text-sm flex items-center gap-1.5"
             >
               <Globe className="w-4 h-4" />
-              {lang === 'en' ? 'Switch to Tanglish 🔥' : 'English Mode 🌐'}
+              {lang === 'en' ? 'Switch to Tamil 🔥' : 'English Mode 🌐'}
             </button>
 
             <button
@@ -2766,7 +2766,7 @@ export default function App() {
               }`}
             >
               <Share2 className="w-4 h-4" />
-              {lang === 'en' ? '2. Share Quiz' : '2. வாட்ஸ்அப் லிங்க்'}
+              {lang === 'en' ? '2. Share Quiz' : '2. க்விஸ் பகிர்'}
             </button>
 
             <button
