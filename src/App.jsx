@@ -2136,14 +2136,23 @@ export default function App() {
       attempts: []
     };
 
-    await saveQuizToCloud(newQuiz);
+    // A cloud write can fail even though the quiz is safely stored locally.
+    // Do not leave the creator trapped in the editor on a network/rules error.
+    let cloudPublished = false;
+    try {
+      await saveQuizToCloud(newQuiz);
+      cloudPublished = Boolean(db && user);
+    } catch (error) {
+      console.error('Quiz cloud publish failed; keeping the local draft:', error);
+    }
+
     setActiveQuizId(newId);
     setUnlockedQuizzes((prev) => ({ ...prev, [newId]: true }));
     setMode('share');
-    if (db && user) {
+    if (cloudPublished) {
       showToast(`Quiz #${newId} is published! Share with your College Gang 🚀`, 'success');
     } else {
-      showToast('Quiz saved on this device. Online sharing and a shared scoreboard need Firebase cloud setup.', 'error');
+      showToast('Quiz saved on this device, but online sharing is not ready. Check Firebase setup and retry before sending the link.', 'error');
     }
   };
 
@@ -2564,6 +2573,8 @@ export default function App() {
   const shareUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/?id=${encodeURIComponent(activeQuiz.id)}&q=${encodeURIComponent(activeQuiz.pronoun || 'm')}`
     : `/?id=${encodeURIComponent(activeQuiz.id)}&q=${encodeURIComponent(activeQuiz.pronoun || 'm')}`;
+  // A share URL is useful to other devices only after this quiz document exists in Firestore.
+  const canShareQuizOnline = cloudSyncStatus === 'live' && cloudQuizIdsRef.current.has(activeQuiz.id);
 
   // ============================================================================
   // RENDER APPLICATION
@@ -2638,7 +2649,7 @@ export default function App() {
           </div>
 
           {/* Right Quick Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 header-quick-actions">
             <button
               onClick={() => {
                 sfx.click();
@@ -2647,7 +2658,7 @@ export default function App() {
               className="px-3.5 py-2 rounded-xl bg-[#FFB800] border-[2.5px] border-[#111] shadow-[3px_3px_0px_#111] active:translate-y-0.5 font-black text-xs sm:text-sm flex items-center gap-1.5"
             >
               <Globe className="w-4 h-4" />
-              {lang === 'en' ? 'Switch to Tanglish 🔥' : 'English Mode 🌐'}
+              {lang === 'en' ? 'Switch to Tamil 🔥' : 'English Mode 🌐'}
             </button>
 
             <button
@@ -2727,7 +2738,7 @@ export default function App() {
       )}
       {/* Flow Switcher Bar */}
         <div className="max-w-6xl mx-auto mt-3 pt-2.5 border-t-2 border-dashed border-neutral-300 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 header-flow-actions">
             <button
               onClick={() => {
                 sfx.click();
@@ -2755,7 +2766,7 @@ export default function App() {
               }`}
             >
               <Share2 className="w-4 h-4" />
-              {lang === 'en' ? '2. Viral Link & OG Card' : '2. வாட்ஸ்அப் லிங்க்'}
+              {lang === 'en' ? '2. Share Quiz' : '2. க்விஸ் பகிர்'}
             </button>
 
             <button
@@ -2786,7 +2797,7 @@ export default function App() {
               }`}
             >
               <BarChart3 className="w-4 h-4" />
-              {lang === 'en' ? '4. Motion Graphs & Board' : '4. கிராப் & ஸ்கோர்போர்டு'}
+              {lang === 'en' ? '4. Scoreboard & Stats' : '4. கிராப் & ஸ்கோர்போர்டு'}
               <span className="px-1.5 py-0.2 bg-[#111] text-white rounded-full text-[11px]">
                 {(activeQuiz.attempts || []).length}
               </span>
@@ -2846,7 +2857,7 @@ export default function App() {
 
                     <div>
                       <label className="block font-black text-sm mb-2">
-                        {lang === 'en' ? '2. Select Vibe Pronouns' : '2. பாலினம் / Pronoun'}
+                        {lang === 'en' ? '2. Choose Your Pronouns' : '2. பாலினம் / Pronoun'}
                       </label>
                       <div className="grid grid-cols-3 gap-2.5">
                         {[
@@ -3004,7 +3015,7 @@ export default function App() {
                           <Lock className="w-4 h-4" /> Creator 4-Digit Admin PIN
                         </div>
                         <p className="text-xs font-bold text-neutral-700 mt-1">
-                          Save this PIN to unlock scoreboard moderation from any mobile browser.
+                          Keep this PIN private. It is a convenience check on this device, not account-level security.
                         </p>
                       </div>
                       <div className="px-3.5 py-2 rounded-xl bg-white border-[3px] border-[#111] font-mono font-black text-xl">
@@ -3040,7 +3051,7 @@ export default function App() {
 
                   <div className="flex items-center gap-2">
                     <span className="px-3 py-1 rounded-full bg-[#B8FF01] border-2 border-[#111] font-black text-xs">
-                      {cQuestions.filter((q) => q.correctOptionId).length} / Picked
+                      {cQuestions.filter((q) => q.correctOptionId).length} / Answered
                     </span>
                     <span className="px-3 py-1 rounded-full bg-[#FF3366] text-white border-2 border-[#111] font-black text-xs">
                       ⚠️ {cQuestions.filter((q) => q.isDealbreaker).length}/2 Dealbreakers
@@ -3232,13 +3243,13 @@ export default function App() {
               )}
             </div>
 
-            {cloudSyncStatus !== 'live' ? (
+            {!canShareQuizOnline ? (
               <div role="status" className="mb-6 rounded-2xl border-[3px] border-[#111] bg-amber-50 p-4 shadow-[3px_3px_0px_#111]">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-700" />
                   <div>
-                    <p className="font-black text-sm">{cloudSyncStatus === 'connecting' ? 'Connecting to the shared scoreboard…' : 'Online sharing is not connected'}</p>
-                    <p className="text-sm mt-1">{cloudSyncStatus === 'connecting' ? 'Waiting for Firebase to confirm a live quiz snapshot. If this takes too long, check your connection and Firebase setup.' : 'This quiz is saved on this device only until Firebase sign-in and Firestore access rules are working. Friends on other phones cannot load or submit scores while cloud sync is offline.'}</p>
+                    <p className="font-black text-sm">{cloudSyncStatus === 'connecting' ? 'Connecting to online sharing…' : 'This quiz is not available to other devices yet'}</p>
+                    <p className="text-sm mt-1">{cloudSyncStatus === 'connecting' ? 'Waiting for Firebase to confirm a live connection. If this takes too long, check your connection and Firebase setup.' : 'This quiz is stored on this device until it is successfully published to Firebase. Copying or sharing its link now would not let friends on other devices load it.'}</p>
                   </div>
                 </div>
               </div>
@@ -3247,7 +3258,7 @@ export default function App() {
             {/* Social OG Preview Card with Real Photo */}
             <div className="mb-6">
               <label className="block font-black text-xs uppercase text-neutral-600 mb-2">
-                📱 WhatsApp Group & Instagram Story Link Preview:
+                📱 Quiz link preview: 
               </label>
               <div className="max-w-xl rounded-2xl bg-[#111] text-white border-[3px] border-[#111] p-4 shadow-[5px_5px_0px_#FF3366] flex items-center gap-4">
                 <div className="relative w-20 h-20 rounded-2xl border-2 border-[#B8FF01] shrink-0 overflow-hidden bg-gradient-to-br from-[#FF3366] to-[#FFB800] flex items-center justify-center" aria-label={`${activeQuiz.creatorName} avatar`}>
@@ -3267,7 +3278,7 @@ export default function App() {
                     ⚠️ {activeQuiz.creatorName} is auditing the College Gang!
                   </h3>
                   <p className="text-xs text-neutral-300 mt-1">
-                    Guess my Favorite Actor, Cartoon, Biryani & Bench Spot! Score{' '}
+                    Guess my favorite hero, cartoon, food and bench spot. Score{' '}
                     {activeQuiz.passScore}/10 or get BLOCKED 🚫
                   </p>
                   <div className="mt-2 text-xs font-mono text-[#00E5FF] truncate">{shareUrl}</div>
@@ -3277,23 +3288,32 @@ export default function App() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <button
+                disabled={!canShareQuizOnline}
                 onClick={async () => {
+                  if (!canShareQuizOnline) return;
                   sfx.correct(2);
                   await copyTextBulletproof(shareUrl);
-                  showToast('Quiz Link Copied! Paste in your College WhatsApp Group 📋', 'success');
+                  showToast('Quiz link copied. Paste it into your group chat 📋', 'success');
                 }}
-                className="py-3.5 px-4 rounded-2xl bg-[#B8FF01] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] font-black text-sm flex items-center justify-center gap-2"
+                className="py-3.5 px-4 rounded-2xl bg-[#B8FF01] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] font-black text-sm flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <Copy className="w-4 h-4" /> Copy Viral Link
+                <Copy className="w-4 h-4" /> Copy Quiz Link
               </button>
 
               <a
                 href={`https://wa.me/?text=${encodeURIComponent(
-                  `🔥 *${activeQuiz.creatorName}'s College Squad Block Test!*\nGuess my favorite Hero, Cartoon, Food & Bench Spot! Score *${activeQuiz.passScore}/${activeQuiz.questions.length}* or get BLOCKED 🚫👇\n${shareUrl}`
+                  `🔥 *${activeQuiz.creatorName}'s College Squad Block Test!*\nGuess my favorite hero, cartoon, food and bench spot. Score *${activeQuiz.passScore}/${activeQuiz.questions.length}* or get BLOCKED 🚫👇\n${shareUrl}`
                 )}`}
                 target="_blank"
                 rel="noreferrer"
-                className="py-3.5 px-4 rounded-2xl bg-[#25D366] text-[#111] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] font-black text-sm flex items-center justify-center gap-2"
+                aria-disabled={!canShareQuizOnline}
+                onClick={(e) => {
+                  if (!canShareQuizOnline) {
+                    e.preventDefault();
+                    showToast('Online sharing is unavailable until this quiz syncs to Firebase.', 'error');
+                  }
+                }}
+                className={`py-3.5 px-4 rounded-2xl bg-[#25D366] text-[#111] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] font-black text-sm flex items-center justify-center gap-2 ${!canShareQuizOnline ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <MessageCircle className="w-4 h-4" /> Share on WhatsApp
               </a>
