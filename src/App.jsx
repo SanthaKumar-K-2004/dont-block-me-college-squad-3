@@ -3250,11 +3250,15 @@ export default function App() {
                 📱 WhatsApp Group & Instagram Story Link Preview:
               </label>
               <div className="max-w-xl rounded-2xl bg-[#111] text-white border-[3px] border-[#111] p-4 shadow-[5px_5px_0px_#FF3366] flex items-center gap-4">
-                <img
-                  src={activeQuiz.customAvatarUrl || activeAvatar.img}
-                  alt={activeQuiz.creatorName} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
-                  className="w-20 h-20 rounded-2xl object-cover border-2 border-[#B8FF01] shrink-0"
-                />
+                <div className="relative w-20 h-20 rounded-2xl border-2 border-[#B8FF01] shrink-0 overflow-hidden bg-gradient-to-br from-[#FF3366] to-[#FFB800] flex items-center justify-center" aria-label={`${activeQuiz.creatorName} avatar`}>
+                  <span className="text-3xl" aria-hidden="true">{activeQuiz.avatar || '👥'}</span>
+                  <img
+                    src={activeQuiz.customAvatarUrl || activeAvatar.img}
+                    alt=""
+                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                </div>
                 <div className="min-w-0">
                   <div className="text-[11px] font-black text-[#B8FF01] uppercase">
                     COLLEGE SQUAD • SHAREABLE QUIZ
