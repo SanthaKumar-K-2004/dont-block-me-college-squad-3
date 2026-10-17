@@ -91,12 +91,13 @@ class SoundEngine {
   }
 
   click() {
-    this.playTone(580, 'triangle', 0.05, 0, 0.1);
+    this.playTone(659.25, 'sine', 0.045, 0, 0.035);
   }
 
   swap() {
-    this.playTone(320, 'sine', 0.07, 0, 0.1);
-    this.playTone(540, 'triangle', 0.09, 0.05, 0.12);
+    this.playTone(440, 'sine', 0.07, 0, 0.035);
+    this.playTone(659.25, 'triangle', 0.085, 0.045, 0.04);
+    this.playTone(880, 'sine', 0.09, 0.085, 0.03);
   }
 
   dealbreaker() {
@@ -105,12 +106,8 @@ class SoundEngine {
   }
 
   correct(streak = 1) {
-    const base = 523.25 + Math.min(streak * 45, 300);
-    this.playTone(base, 'triangle', 0.1, 0, 0.15);
-    this.playTone(base * 1.25, 'triangle', 0.16, 0.07, 0.16);
-    if (streak >= 3) {
-      this.playTone(base * 1.5, 'sine', 0.2, 0.14, 0.16);
-    }
+    const notes = streak >= 3 ? [659.25, 783.99, 987.77] : [523.25, 659.25];
+    notes.forEach((note, idx) => this.playTone(note, idx === 1 ? 'triangle' : 'sine', 0.11 + idx * 0.025, idx * 0.055, 0.035));
   }
 
   wrong() {
@@ -125,9 +122,7 @@ class SoundEngine {
 
   fanfare() {
     const notes = [523.25, 659.25, 783.99, 1046.5];
-    notes.forEach((n, idx) => {
-      this.playTone(n, 'triangle', 0.18, idx * 0.08, 0.15);
-    });
+    notes.forEach((n, idx) => this.playTone(n, idx === 3 ? 'triangle' : 'sine', 0.16, idx * 0.075, 0.04));
   }
 
   blockedAlarm() {
@@ -161,7 +156,7 @@ const QUESTION_POOL = [
         emoji: '🔥',
         en: 'Thalapathy Vijay (Mass & Dance Entertainer)',
         desi: 'தளபதி விஜய் (தரமான மாஸ் & டான்ஸ்)',
-        img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=600&q=80',
+        img: '',
         gradient: 'from-amber-500 to-red-600'
       },
       {
@@ -170,7 +165,7 @@ const QUESTION_POOL = [
         emoji: '😎',
         en: 'Thala Ajith / Rajini (Pure Swag & Gangster Style)',
         desi: 'தல அஜித் / தலைவர் ரஜினி (மங்காத்தா ஸ்டைல்)',
-        img: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80',
+        img: '',
         gradient: 'from-slate-800 to-red-700'
       },
       {
@@ -179,7 +174,7 @@ const QUESTION_POOL = [
         emoji: '🦁',
         en: 'Suriya / Kamal / Vikram (Intense Acting & Action)',
         desi: 'சூர்யா / விக்ரம் / கமல் (மிரட்டல் நடிப்பு & ரோலக்ஸ் வைப்)',
-        img: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=600&q=80',
+        img: '',
         gradient: 'from-purple-700 to-indigo-900'
       },
       {
@@ -188,7 +183,7 @@ const QUESTION_POOL = [
         emoji: '🎭',
         en: 'Dhanush / Sivakarthikeyan (Relatable Boy & Comedy)',
         desi: 'தனுஷ் / சிவகார்த்திகேயன் (பக்கத்து வீட்டு பையன் வைப்)',
-        img: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80',
+        img: '',
         gradient: 'from-emerald-500 to-teal-700'
       }
     ]
@@ -207,7 +202,7 @@ const QUESTION_POOL = [
         emoji: '😜',
         en: 'Shinchan (Non-stop Comedy & Trouble Maker)',
         desi: 'ஷின்சான் (சேட்டை & குலுங்க குலுங்க சிரிப்பு)',
-        img: 'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=600&q=80',
+        img: '',
         gradient: 'from-yellow-400 to-red-500'
       },
       {
@@ -216,7 +211,7 @@ const QUESTION_POOL = [
         emoji: '🐉',
         en: 'Jackie Chan Adventures / Ben 10 (Action Legend)',
         desi: 'ஜாக்கி சான் மந்திர கற்கள் / பென் 10 (சுட்டி டிவி லெஜண்ட்)',
-        img: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80',
+        img: '',
         gradient: 'from-green-500 to-emerald-800'
       },
       {
@@ -225,7 +220,7 @@ const QUESTION_POOL = [
         emoji: '🔔',
         en: 'Doraemon / Mr. Bean (Time Machine & Chill)',
         desi: 'டோரேமான் / மிஸ்டர் பீன் (கேட்ஜெட் கிங்)',
-        img: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
+        img: '',
         gradient: 'from-sky-400 to-blue-700'
       },
       {
@@ -234,7 +229,7 @@ const QUESTION_POOL = [
         emoji: '🍥',
         en: 'Naruto / One Piece / Dragon Ball Z (Pure Anime)',
         desi: 'நருட்டோ / ஒன் பீஸ் / டிராகன் பால் Z (வெறித்தனமான அனிமே)',
-        img: 'https://images.unsplash.com/photo-1541562232579-512a21360020?auto=format&fit=crop&w=600&q=80',
+        img: '',
         gradient: 'from-orange-500 to-rose-700'
       }
     ]
@@ -1740,9 +1735,9 @@ export default function App() {
     };
     setCQuestions(updated);
 
-    if (currentQIndex < 9) {
+    if (currentQIndex < cQuestions.length - 1) {
       setTimeout(() => {
-        setCurrentQIndex((prev) => Math.min(9, prev + 1));
+        setCurrentQIndex((prev) => Math.min(cQuestions.length - 1, prev + 1));
       }, 250);
     }
   };
@@ -2699,7 +2694,7 @@ export default function App() {
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-black text-sm">5. Pass Cut-Off Score</span>
                         <span className="px-3 py-1 rounded-xl bg-[#FF3366] text-white border-2 border-[#111] font-black text-sm">
-                          {cPassScore} / 10
+                          {cPassScore} / {cQuestions.length}
                         </span>
                       </div>
                       <input
@@ -2711,7 +2706,7 @@ export default function App() {
                         className="w-full accent-[#FF3366] cursor-pointer"
                       />
                       <p className="text-xs font-bold text-neutral-600 mt-1">
-                        Friends scoring under {cPassScore}/10 get slammed with the BLOCKED stamp!
+                        Friends scoring under {cPassScore}/{cQuestions.length} get slammed with the BLOCKED stamp!
                       </p>
                     </div>
 
@@ -2735,7 +2730,7 @@ export default function App() {
                     className="w-full py-4 rounded-2xl bg-[#B8FF01] hover:bg-[#a6e800] border-[3px] border-[#111] shadow-[5px_5px_0px_#111] active:translate-y-1 font-black text-lg flex items-center justify-center gap-2"
                   >
                     {lang === 'en'
-                      ? 'Next: Pick Your 10 Photo Trading Cards'
+                      ? 'Next: Pick Your Photo Trading Cards'
                       : 'அடுத்து: 10 கேள்விகளுக்கு உங்க பதிலை தேர்வு செய்யுங்க'}
                     <ArrowRight className="w-6 h-6" />
                   </button>
@@ -2757,7 +2752,7 @@ export default function App() {
 
                   <div className="flex items-center gap-2">
                     <span className="px-3 py-1 rounded-full bg-[#B8FF01] border-2 border-[#111] font-black text-xs">
-                      {cQuestions.filter((q) => q.correctOptionId).length} / 10 Picked
+                      {cQuestions.filter((q) => q.correctOptionId).length} / Picked
                     </span>
                     <span className="px-3 py-1 rounded-full bg-[#FF3366] text-white border-2 border-[#111] font-black text-xs">
                       ⚠️ {cQuestions.filter((q) => q.isDealbreaker).length}/2 Dealbreakers
@@ -2894,10 +2889,10 @@ export default function App() {
                     </button>
                     <button
                       type="button"
-                      disabled={currentQIndex === 9}
+                      disabled={currentQIndex === cQuestions.length - 1}
                       onClick={() => {
                         sfx.click();
-                        setCurrentQIndex((i) => Math.min(9, i + 1));
+                        setCurrentQIndex((i) => Math.min(cQuestions.length - 1, i + 1));
                       }}
                       className="px-4 py-2.5 rounded-xl bg-white border-[2.5px] border-[#111] font-black text-sm disabled:opacity-40"
                     >
@@ -2982,7 +2977,7 @@ export default function App() {
 
               <a
                 href={`https://wa.me/?text=${encodeURIComponent(
-                  `🔥 *${activeQuiz.creatorName}'s College Squad Block Test!*\nGuess my favorite Hero, Cartoon, Food & Bench Spot! Score *${activeQuiz.passScore}/10* or get BLOCKED 🚫👇\n${shareUrl}`
+                  `🔥 *${activeQuiz.creatorName}'s College Squad Block Test!*\nGuess my favorite Hero, Cartoon, Food & Bench Spot! Score *${activeQuiz.passScore}/${activeQuiz.questions.length}* or get BLOCKED 🚫👇\n${shareUrl}`
                 )}`}
                 target="_blank"
                 rel="noreferrer"
@@ -3034,7 +3029,7 @@ export default function App() {
                   </h1>
                   <p className="text-xs sm:text-sm font-bold text-neutral-600 mt-1">
                     {lang === 'en'
-                      ? `Pass Mark: ${activeQuiz.passScore}/10 • Build Combo Streaks for Bonus XP • Don't miss Dealbreakers!`
+                      ? `Pass Mark: ${activeQuiz.passScore}/${activeQuiz.questions.length} • Build Combo Streaks for Bonus XP • Don't miss Dealbreakers!`
                       : `பாஸ் மார்க்: ${activeQuiz.passScore}/10 • வேகமா பதில் சொல்லி Combo XP அள்ளுங்க!`}
                   </p>
                 </div>
@@ -3190,17 +3185,17 @@ export default function App() {
                       </div>
 
                       {/* Question Banner with Real Photography */}
-                      <div className="relative h-28 sm:h-36 rounded-2xl border-[3px] border-[#111] overflow-hidden mb-5 bg-neutral-900">
+                      <div className="question-banner relative min-h-[220px] sm:min-h-0 h-auto sm:h-36 rounded-2xl border-[3px] border-[#111] overflow-hidden mb-5 bg-neutral-900">
                         <img
                           src={q.bannerImg}
                           alt={q.category} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.opacity = '0'; }}
                           className="w-full h-full object-cover opacity-65"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-4 flex flex-col justify-end">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/65 to-black/25 p-3 sm:p-4 flex flex-col justify-end gap-2">
                           <span className="text-[11px] font-black uppercase text-[#B8FF01] tracking-wider">
                             {q.category}
                           </span>
-                          <h2 className="text-white text-lg sm:text-2xl font-black leading-snug">
+                          <h2 className="text-white text-lg sm:text-2xl font-black leading-snug break-words">
                             {formatQuestionText(
                               lang === 'en' ? q.en : q.desi,
                               activeQuiz.creatorName,
@@ -3807,7 +3802,7 @@ export default function App() {
             <div className="flex items-center justify-between pb-3 border-b-2 border-[#111]">
               <div>
                 <h3 className="font-black text-xl">
-                  🔍 {inspectedAttempt.friendName}&apos;s Report ({inspectedAttempt.score}/10)
+                  🔍 {inspectedAttempt.friendName}&apos;s Report ({inspectedAttempt.score}/{inspectedAttempt.total})
                 </h3>
                 <p className="text-xs font-bold text-neutral-600">
                   Max Streak: 🔥 {inspectedAttempt.maxStreak || 3}x • Speed:{' '}
