@@ -1,0 +1,53 @@
+name: Unpack project into repository root
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "dont-block-me-college-squad-3.zip"
+      - ".github/workflows/unpack-project.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    if: github.repository == 'SanthaKumar-K-2004/dont-block-me-college-squad-3'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Extract project files
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="dont-block-me-college-squad-3.zip"
+          if [ ! -f "$archive" ]; then
+            echo "Project archive is missing; nothing to extract."
+            exit 0
+          fi
+          if [ -f package.json ]; then
+            echo "Project already exists at repository root; refusing to overwrite it."
+            exit 0
+          fi
+          mkdir -p /tmp/project-archive
+          unzip -q "$archive" "dont-block-me-college-squad-3/*" -d /tmp/project-archive
+          source_dir="/tmp/project-archive/dont-block-me-college-squad-3"
+          test -f "$source_dir/package.json"
+          test -f "$source_dir/src/main.jsx"
+          cp -a "$source_dir/." .
+          rm -f "$archive"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No extracted changes to commit."
+            exit 0
+          fi
+      - name: Commit extracted project
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Add extracted React project files"
+          git push
