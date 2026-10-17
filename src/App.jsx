@@ -1560,6 +1560,7 @@ export default function App() {
   const [linkedQuizError, setLinkedQuizError] = useState('');
   const [cloudSnapshotReady, setCloudSnapshotReady] = useState(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState(db ? 'connecting' : 'offline');
+  const [isRetryingCloudPublish, setIsRetryingCloudPublish] = useState(false);
 
   // View Mode: 'create' | 'share' | 'play' | 'scoreboard'
   const [mode, setMode] = useState('create');
@@ -3247,9 +3248,35 @@ export default function App() {
               <div role="status" className="mb-6 rounded-2xl border-[3px] border-[#111] bg-amber-50 p-4 shadow-[3px_3px_0px_#111]">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-700" />
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="font-black text-sm">{cloudSyncStatus === 'connecting' ? 'Connecting to online sharing…' : 'This quiz is not available to other devices yet'}</p>
                     <p className="text-sm mt-1">{cloudSyncStatus === 'connecting' ? 'Waiting for Firebase to confirm a live connection. If this takes too long, check your connection and Firebase setup.' : 'This quiz is stored on this device until it is successfully published to Firebase. Copying or sharing its link now would not let friends on other devices load it.'}</p>
+                    {db && user ? (
+                      <button
+                        type="button"
+                        disabled={isRetryingCloudPublish}
+                        onClick={async () => {
+                          if (isRetryingCloudPublish || !db || !user) return;
+                          setIsRetryingCloudPublish(true);
+                          try {
+                            await saveQuizToCloud(activeQuiz);
+                            setCloudSyncStatus('live');
+                            setCloudSnapshotReady(true);
+                            showToast('Quiz sync succeeded. Your share link is ready.', 'success');
+                          } catch (error) {
+                            console.error('Manual quiz sync failed:', error);
+                            showToast('Sync still failed. Check Firebase permissions and try again.', 'error');
+                          } finally {
+                            setIsRetryingCloudPublish(false);
+                          }
+                        }}
+                        className="mt-3 rounded-xl border-2 border-[#111] bg-[#B8FF01] px-4 py-2.5 text-sm font-black shadow-[2px_2px_0px_#111] disabled:opacity-50"
+                      >
+                        {isRetryingCloudPublish ? 'Retrying sync…' : 'Retry online sync'}
+                      </button>
+                    ) : (
+                      <p className="mt-3 text-xs font-bold text-amber-900">Firebase setup or sign-in is not ready yet. Check the connection, Anonymous Authentication, and Firestore rules.</p>
+                    )}
                   </div>
                 </div>
               </div>
