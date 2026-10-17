@@ -50,111 +50,133 @@ try {
 class SoundEngine {
   constructor() {
     this.ctx = null;
+    this.master = null;
     this.muted = false;
     this.musicTimer = null;
     this.musicStep = 0;
+    this.musicGeneration = 0;
   }
 
   init() {
-    if (!this.ctx && typeof window !== 'undefined') {
+    if (typeof window === 'undefined') return null;
+    if (!this.ctx) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) this.ctx = new AudioCtx();
+      if (!AudioCtx) return null;
+      try {
+        this.ctx = new AudioCtx();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = this.muted ? 0 : 0.78;
+        this.master.connect(this.ctx.destination);
+      } catch (e) {
+        this.ctx = null;
+        this.master = null;
+        return null;
+      }
     }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+    return this.ctx;
+  }
+
+  async unlock() {
+    const ctx = this.init();
+    if (!ctx) return false;
+    try {
+      if (ctx.state !== 'running') await ctx.resume();
+      return ctx.state === 'running';
+    } catch (e) {
+      return false;
     }
   }
 
   playTone(freq, type = 'sine', duration = 0.1, delay = 0, vol = 0.12) {
     if (this.muted) return;
-    try {
-      this.init();
-      if (!this.ctx) return;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      const startTime = this.ctx.currentTime + delay;
-
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, startTime);
-
-      const peak = Math.min(Math.max(vol, 0.005), 0.045);
-      gain.gain.setValueAtTime(0.0001, startTime);
-      gain.gain.exponentialRampToValueAtTime(peak, startTime + Math.min(0.018, duration / 3));
-      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-
-      osc.start(startTime);
-      osc.stop(startTime + duration);
-    } catch (e) {
-      // Ignore audio errors on restricted devices
-    }
+    const ctx = this.init();
+    if (!ctx || !this.master) return;
+    const play = () => {
+      if (this.muted || !this.ctx || this.ctx.state !== 'running') return;
+      try {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const startTime = this.ctx.currentTime + Math.max(0, delay);
+        const peak = Math.min(Math.max(vol, 0.008), 0.12);
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0.0001, startTime);
+        gain.gain.exponentialRampToValueAtTime(peak, startTime + Math.min(0.025, duration / 3));
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+        osc.connect(gain);
+        gain.connect(this.master);
+        osc.start(startTime);
+        osc.stop(startTime + duration + 0.015);
+        osc.onended = () => {
+          try { osc.disconnect(); gain.disconnect(); } catch (e) {}
+        };
+      } catch (e) {}
+    };
+    if (ctx.state === 'running') play();
+    else this.unlock().then((ready) => { if (ready) play(); });
   }
 
-  startMusic() {
-    if (this.musicTimer || typeof window === 'undefined') return;
-    this.init();
+  async startMusic() {
+    if (typeof window === 'undefined') return;
+    this.stopMusic();
+    const generation = ++this.musicGeneration;
+    const ready = await this.unlock();
+    if (!ready || generation !== this.musicGeneration || this.muted) return;
     const melody = [261.63, 329.63, 392, 329.63, 293.66, 349.23, 440, 349.23];
     const playBar = () => {
-      if (this.muted) return;
+      if (this.muted || generation !== this.musicGeneration) return;
       const note = melody[this.musicStep % melody.length];
-      this.playTone(note, 'sine', 0.32, 0, 0.018);
-      this.playTone(note * 2, 'sine', 0.18, 0.045, 0.006);
+      this.playTone(note, 'triangle', 0.30, 0, 0.035);
+      this.playTone(note * 2, 'sine', 0.16, 0.055, 0.012);
       this.musicStep += 1;
     };
     playBar();
-    this.musicTimer = window.setInterval(playBar, 420);
+    this.musicTimer = window.setInterval(playBar, 360);
   }
 
   stopMusic() {
+    this.musicGeneration += 1;
     if (this.musicTimer && typeof window !== 'undefined') window.clearInterval(this.musicTimer);
     this.musicTimer = null;
   }
 
-  click() {
-    this.playTone(659.25, 'sine', 0.045, 0, 0.035);
+  setMuted(value) {
+    this.muted = Boolean(value);
+    if (this.master && this.ctx) {
+      try { this.master.gain.setTargetAtTime(this.muted ? 0 : 0.78, this.ctx.currentTime, 0.02); } catch (e) {}
+    }
+    if (this.muted) this.stopMusic();
   }
 
+  click() { this.playTone(659.25, 'sine', 0.06, 0, 0.06); }
   swap() {
-    this.playTone(440, 'sine', 0.07, 0, 0.035);
-    this.playTone(659.25, 'triangle', 0.085, 0.045, 0.04);
-    this.playTone(880, 'sine', 0.09, 0.085, 0.03);
+    this.playTone(440, 'sine', 0.08, 0, 0.055);
+    this.playTone(659.25, 'triangle', 0.09, 0.05, 0.06);
+    this.playTone(880, 'sine', 0.10, 0.10, 0.05);
   }
-
   dealbreaker() {
-    this.playTone(293.66, 'triangle', 0.09, 0, 0.07);
-    this.playTone(392, 'sine', 0.12, 0.065, 0.07);
+    this.playTone(293.66, 'triangle', 0.10, 0, 0.08);
+    this.playTone(392, 'sine', 0.13, 0.07, 0.08);
   }
-
   correct(streak = 1) {
     const notes = streak >= 3 ? [659.25, 783.99, 987.77] : [523.25, 659.25];
-    notes.forEach((note, idx) => this.playTone(note, idx === 1 ? 'triangle' : 'sine', 0.11 + idx * 0.025, idx * 0.055, 0.035));
+    notes.forEach((note, idx) => this.playTone(note, idx === 1 ? 'triangle' : 'sine', 0.12 + idx * 0.025, idx * 0.06, 0.06));
   }
-
   wrong() {
-    this.playTone(196, 'triangle', 0.12, 0, 0.07);
-    this.playTone(146.83, 'sine', 0.16, 0.09, 0.06);
+    this.playTone(196, 'triangle', 0.13, 0, 0.08);
+    this.playTone(146.83, 'sine', 0.17, 0.09, 0.075);
   }
-
   stampSlam() {
-    this.playTone(110, 'triangle', 0.16, 0, 0.08);
-    this.playTone(82.41, 'sine', 0.2, 0.045, 0.065);
+    this.playTone(110, 'triangle', 0.17, 0, 0.09);
+    this.playTone(82.41, 'sine', 0.21, 0.05, 0.08);
   }
-
   fanfare() {
-    const notes = [523.25, 659.25, 783.99, 1046.5];
-    notes.forEach((n, idx) => this.playTone(n, idx === 3 ? 'triangle' : 'sine', 0.16, idx * 0.075, 0.04));
+    [523.25, 659.25, 783.99, 1046.5].forEach((n, idx) => this.playTone(n, idx === 3 ? 'triangle' : 'sine', 0.17, idx * 0.08, 0.065));
   }
-
   blockedAlarm() {
-    const notes = [293.66, 220, 261.63, 196];
-    notes.forEach((n, idx) => {
-      this.playTone(n, 'triangle', 0.14, idx * 0.12, 0.065);
-    });
+    [293.66, 220, 261.63, 196].forEach((n, idx) => this.playTone(n, 'triangle', 0.15, idx * 0.12, 0.08));
   }
 }
-
 const sfx = new SoundEngine();
 
 // ============================================================================
@@ -2538,8 +2560,10 @@ export default function App() {
 
             <button
               onClick={() => {
-                sfx.muted = !muted;
-                setMuted(!muted);
+                const nextMuted = !muted;
+                sfx.setMuted(nextMuted);
+                setMuted(nextMuted);
+                if (!nextMuted && musicOn) sfx.startMusic();
               }}
               className={`p-2 rounded-xl border-[2.5px] border-[#111] shadow-[3px_3px_0px_#111] ${
                 muted ? 'bg-neutral-200' : 'bg-[#00E5FF]'
