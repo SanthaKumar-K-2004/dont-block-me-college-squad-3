@@ -1999,9 +1999,9 @@ export default function App() {
   const handleStartBuildingQuestions = (e) => {
     e.preventDefault();
     sfx.click();
-    if (!cName.trim()) {
+    if (cName.trim().length < 2) {
       showToast(
-        lang === 'en' ? 'Enter your name first Machan!' : 'உங்க பேரை முதல்ல டைப் பண்ணுங்க மச்சான்!',
+        lang === 'en' ? 'Enter a name with at least 2 characters first!' : 'குறைந்தது 2 எழுத்து பெயரை உள்ளிடுங்கள்!',
         'error'
       );
       return;
