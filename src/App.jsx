@@ -1091,15 +1091,74 @@ function computeRadarMetrics(questions, answersMap) {
 // Free, openly licensed photos are discovered from Wikimedia Commons at runtime.
 // Search results include the file page and license metadata so credits remain visible.
 const commonsPhotoCache = new Map();
+const COMMONS_STORAGE_KEY = 'college-squad-commons-photos-v1';
+const COMMONS_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+const COMMONS_FETCH_TIMEOUT = 4500;
+const COMMONS_IMAGE_TIMEOUT = 3200;
+
 const plainCommonsText = (value = '') => String(value).replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&#160;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+
+const readCommonsStorage = (key) => {
+  try {
+    const cache = JSON.parse(window.localStorage.getItem(COMMONS_STORAGE_KEY) || '{}');
+    const entry = cache[key];
+    if (entry?.expiresAt > Date.now() && entry.photo?.url && entry.photo?.pageUrl) return entry.photo;
+  } catch (error) {}
+  return null;
+};
+
+const writeCommonsStorage = (key, photo) => {
+  try {
+    const cache = JSON.parse(window.localStorage.getItem(COMMONS_STORAGE_KEY) || '{}');
+    cache[key] = { photo, expiresAt: Date.now() + COMMONS_CACHE_TTL };
+    const entries = Object.entries(cache)
+      .filter(([, entry]) => entry?.expiresAt > Date.now())
+      .sort((a, b) => (b[1]?.expiresAt || 0) - (a[1]?.expiresAt || 0))
+      .slice(0, 80);
+    window.localStorage.setItem(COMMONS_STORAGE_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch (error) {
+    // Storage can be unavailable in private browsing or when quota is exhausted.
+  }
+};
+
+const preloadCommonsImage = (url) => new Promise((resolve) => {
+  if (typeof window === 'undefined' || typeof window.Image !== 'function') {
+    resolve(false);
+    return;
+  }
+  let settled = false;
+  const image = new window.Image();
+  const finish = (success) => {
+    if (settled) return;
+    settled = true;
+    window.clearTimeout(timer);
+    image.onload = null;
+    image.onerror = null;
+    resolve(success);
+  };
+  const timer = window.setTimeout(() => finish(false), COMMONS_IMAGE_TIMEOUT);
+  image.onload = () => finish(true);
+  image.onerror = () => finish(false);
+  image.decoding = 'async';
+  image.referrerPolicy = 'no-referrer';
+  image.src = url;
+  if (typeof image.decode === 'function') image.decode().then(() => finish(true)).catch(() => {});
+});
 
 const fetchCommonsPhoto = (query) => {
   const rawQuery = String(query || '').trim().slice(0, 180);
-  if (!rawQuery) return Promise.resolve(null);
+  if (!rawQuery || typeof window === 'undefined') return Promise.resolve(null);
   const cacheKey = rawQuery.toLowerCase();
   if (commonsPhotoCache.has(cacheKey)) return commonsPhotoCache.get(cacheKey);
-  // Long natural-language questions are too restrictive for Commons search.
-  // Keep distinctive topic words and remove filler so results match the actual subject.
+
+  const storedPhoto = readCommonsStorage(cacheKey);
+  if (storedPhoto) {
+    const cachedRequest = preloadCommonsImage(storedPhoto.url).then((loaded) => loaded ? storedPhoto : null);
+    commonsPhotoCache.set(cacheKey, cachedRequest);
+    return cachedRequest;
+  }
+
+  // Keep only distinctive terms. Broad, long question text makes Commons search slow and irrelevant.
   const stopWords = new Set(['what','who','which','where','when','why','how','does','did','can','will','would','your','you','the','and','for','with','from','into','about','this','that','their','they','still','always','actual','favorite','favourite','during','college','question','option','name','vibe','status','best']);
   const terms = rawQuery.toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/)
     .filter((word) => word.length > 2 && !stopWords.has(word));
@@ -1109,48 +1168,62 @@ const fetchCommonsPhoto = (query) => {
     generator: 'search',
     gsrsearch: cleanQuery,
     gsrnamespace: '6',
-    gsrlimit: '12',
+    gsrlimit: '8',
     prop: 'imageinfo',
     iiprop: 'url|extmetadata',
-    iiurlwidth: '800',
+    iiurlwidth: '640',
     format: 'json',
-    origin: '*'
+    origin: '*',
+    smaxage: '86400',
+    maxage: '86400'
   });
-  const request = fetch(`https://commons.wikimedia.org/w/api.php?${params.toString()}`, {
-    headers: { Accept: 'application/json' }
-  }).then((response) => {
-    if (!response.ok) throw new Error('Commons image search unavailable');
-    return response.json();
-  }).then((data) => {
-    const pages = Object.values(data?.query?.pages || {}).sort((a, b) => (a.index ?? 999) - (b.index ?? 999));
-    const usable = pages.find((page) => {
-      const info = page.imageinfo?.[0];
-      const mime = String(info?.mime || '');
-      const title = String(page.title || '');
-      const metadata = info?.extmetadata || {};
-      const hasLicense = Boolean(metadata.LicenseShortName?.value || metadata.UsageTerms?.value);
-      return Boolean(info?.thumburl) &&
-        /^image\/(jpeg|png|webp|gif)$/i.test(mime) &&
-        Number(info.width || 0) >= 320 &&
-        hasLicense &&
-        !/\b(logo|icon|favicon|watermark)\b/i.test(title);
-    });
-    if (!usable) return null;
-    const info = usable.imageinfo[0];
-    const meta = info.extmetadata || {};
-    const title = String(usable.title || '').replace(/^File:/, '');
-    return {
-      url: info.thumburl || info.url,
-      pageUrl: `https://commons.wikimedia.org/wiki/${encodeURIComponent(usable.title || '').replace(/%3A/gi, ':').replace(/%20/g, '_')}`,
-      title,
-      artist: plainCommonsText(meta.Artist?.value || ''),
-      license: plainCommonsText(meta.LicenseShortName?.value || meta.UsageTerms?.value || 'License details'),
-      licenseUrl: meta.LicenseUrl?.value || ''
-    };
-  }).catch((error) => {
-    console.info('Open image search skipped:', error?.message || error);
-    return null;
-  });
+
+  const request = (async () => {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? window.setTimeout(() => controller.abort(), COMMONS_FETCH_TIMEOUT) : null;
+    try {
+      const response = await fetch('https://commons.wikimedia.org/w/api.php?' + params.toString(), {
+        signal: controller?.signal,
+        headers: { Accept: 'application/json' }
+      });
+      if (!response.ok) throw new Error('Commons image search unavailable');
+      const data = await response.json();
+      const pages = Object.values(data?.query?.pages || {}).sort((a, b) => (a.index ?? 999) - (b.index ?? 999));
+      const usable = pages.find((page) => {
+        const info = page.imageinfo?.[0];
+        const mime = String(info?.mime || '');
+        const title = String(page.title || '');
+        const metadata = info?.extmetadata || {};
+        const hasLicense = Boolean(metadata.LicenseShortName?.value || metadata.UsageTerms?.value);
+        return Boolean(info?.thumburl) &&
+          /^image\/(jpeg|png|webp|gif)$/i.test(mime) &&
+          Number(info.width || 0) >= 320 &&
+          hasLicense &&
+          !/\b(logo|icon|favicon|watermark)\b/i.test(title);
+      });
+      if (!usable) return null;
+      const info = usable.imageinfo[0];
+      const meta = info.extmetadata || {};
+      const photo = {
+        url: info.thumburl || info.url,
+        pageUrl: 'https://commons.wikimedia.org/wiki/' + encodeURIComponent(usable.title || '').replace(/%3A/gi, ':').replace(/%20/g, '_'),
+        title: String(usable.title || '').replace(/^File:/, ''),
+        artist: plainCommonsText(meta.Artist?.value || ''),
+        license: plainCommonsText(meta.LicenseShortName?.value || meta.UsageTerms?.value || 'License details'),
+        licenseUrl: meta.LicenseUrl?.value || ''
+      };
+      // Do not swap the visible fallback for a remote URL until that image is actually loadable.
+      const loaded = await preloadCommonsImage(photo.url);
+      if (!loaded) return null;
+      writeCommonsStorage(cacheKey, photo);
+      return photo;
+    } catch (error) {
+      if (error?.name !== 'AbortError') console.info('Open image search skipped:', error?.message || error);
+      return null;
+    } finally {
+      if (timer) window.clearTimeout(timer);
+    }
+  })();
   commonsPhotoCache.set(cacheKey, request);
   return request;
 };
