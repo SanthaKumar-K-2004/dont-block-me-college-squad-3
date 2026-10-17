@@ -18,7 +18,7 @@ test('mergeAttempts safely handles missing and malformed groups', () => {
 test('isValidAttempt accepts a bounded valid attempt', () => {
   assert.equal(isValidAttempt({
     id: 'att_123', friendName: 'Macha', score: 2, total: 3,
-    avgTimeSec: 1.5, timestamp: 123, answers: { q1: 'a', q2: 'b' },
+    avgTimeSec: 1.5, maxStreak: 2, xpEarned: 250, timestamp: 123, answers: { q1: 'a', q2: 'b' },
     missedDealbreaker: false
   }, 3), true);
 });
@@ -26,7 +26,7 @@ test('isValidAttempt accepts a bounded valid attempt', () => {
 test('isValidAttempt rejects invalid scores, question totals, names, and answer maps', () => {
   const valid = {
     id: 'att_123', friendName: 'Macha', score: 2, total: 3,
-    avgTimeSec: 1.5, timestamp: 123, answers: { q1: 'a' },
+    avgTimeSec: 1.5, maxStreak: 2, xpEarned: 250, timestamp: 123, answers: { q1: 'a' },
     missedDealbreaker: false
   };
   assert.equal(isValidAttempt({ ...valid, score: 4 }, 3), false);
