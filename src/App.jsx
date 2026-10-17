@@ -1047,9 +1047,12 @@ const fetchCommonsPhoto = (query) => {
       const info = page.imageinfo?.[0];
       const mime = String(info?.mime || '');
       const title = String(page.title || '');
+      const metadata = info?.extmetadata || {};
+      const hasLicense = Boolean(metadata.LicenseShortName?.value || metadata.UsageTerms?.value);
       return Boolean(info?.thumburl) &&
         /^image\\/(jpeg|png|webp|gif)$/i.test(mime) &&
         Number(info.width || 0) >= 320 &&
+        hasLicense &&
         !/\\b(logo|icon|favicon|watermark)\\b/i.test(title);
     });
     if (!usable) return null;
