@@ -3251,7 +3251,7 @@ export default function App() {
               </label>
               <div className="max-w-xl rounded-2xl bg-[#111] text-white border-[3px] border-[#111] p-4 shadow-[5px_5px_0px_#FF3366] flex items-center gap-4">
                 <div className="relative w-20 h-20 rounded-2xl border-2 border-[#B8FF01] shrink-0 overflow-hidden bg-gradient-to-br from-[#FF3366] to-[#FFB800] flex items-center justify-center" aria-label={`${activeQuiz.creatorName} avatar`}>
-                  <span className="text-3xl" aria-hidden="true">{activeQuiz.avatar || '👥'}</span>
+                  <span className="text-3xl" aria-hidden="true">{activeAvatar.emoji || '👥'}</span>
                   <img
                     src={activeQuiz.customAvatarUrl || activeAvatar.img}
                     alt=""
