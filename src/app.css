@@ -34,3 +34,33 @@ img { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Mobile-first layout hardening: prevent cropped question text and controls. */
+main { min-width: 0; }
+main > div, main section, main article { min-width: 0; }
+.question-banner { isolation: isolate; }
+.question-banner > img { pointer-events: none; }
+.question-banner h2, .question-banner h3 { overflow-wrap: anywhere; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button { min-height: 40px; }
+img { object-position: center; }
+@media (max-width: 640px) {
+  main { padding-left: 12px !important; padding-right: 12px !important; padding-top: 16px !important; }
+  .question-banner { min-height: 340px; }
+  .question-banner > div { position: relative; inset: auto; min-height: 340px; }
+  .question-banner button { min-height: 40px; white-space: normal; line-height: 1.2; }
+  .question-banner h2, .question-banner h3 { font-size: 1.1rem; line-height: 1.35; }
+  .question-banner span { overflow-wrap: anywhere; }
+  .question-banner + div { grid-template-columns: minmax(0, 1fr) !important; }
+  .grid, .grid > * { min-width: 0; }
+  p, h1, h2, h3, h4 { overflow-wrap: anywhere; }
+  .overflow-x-auto { -webkit-overflow-scrolling: touch; }
+  .fixed.inset-0 { padding-left: 10px !important; padding-right: 10px !important; }
+  .fixed.inset-0 > div { max-height: calc(100dvh - 24px); overflow-y: auto; }
+  input, textarea, select { font-size: 16px !important; }
+}
+@media (max-width: 380px) {
+  .question-banner { min-height: 390px; }
+  .question-banner > div { min-height: 390px; }
+  .question-banner h2, .question-banner h3 { font-size: 1rem; }
+}
