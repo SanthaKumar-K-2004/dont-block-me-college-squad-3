@@ -2010,7 +2010,11 @@ export default function App() {
     setActiveQuizId(newId);
     setUnlockedQuizzes((prev) => ({ ...prev, [newId]: true }));
     setMode('share');
-    showToast(`Quiz #${newId} is LIVE! Share with your College Gang 🚀`, 'success');
+    if (db && user) {
+      showToast(`Quiz #${newId} is published! Share with your College Gang 🚀`, 'success');
+    } else {
+      showToast('Quiz saved on this device. Online sharing and a shared scoreboard need Firebase cloud setup.', 'error');
+    }
   };
 
   // ============================================================================
@@ -3034,7 +3038,7 @@ export default function App() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div>
                 <span className="inline-block px-3 py-1 rounded-full bg-[#B8FF01] border-2 border-[#111] font-black text-xs uppercase mb-1">
-                  SQUAD QUIZ LIVE • #{activeQuiz.id}
+                  {db && user ? 'SQUAD QUIZ LIVE' : 'DEVICE-ONLY QUIZ'} • #{activeQuiz.id}
                 </span>
                 <h1 className="text-2xl sm:text-3xl font-black">
                   Share {activeQuiz.creatorName}&apos;s College Audit ⚡
@@ -3045,6 +3049,18 @@ export default function App() {
                 <div className="font-mono font-black text-lg">{activeQuiz.pin}</div>
               </div>
             </div>
+
+            {!db || !user ? (
+              <div role="status" className="mb-6 rounded-2xl border-[3px] border-[#111] bg-amber-50 p-4 shadow-[3px_3px_0px_#111]">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-700" />
+                  <div>
+                    <p className="font-black text-sm">Online sharing is not connected yet</p>
+                    <p className="text-sm mt-1">This quiz is saved on this device only. Friends on other phones cannot load the quiz or add scores to your shared leaderboard until Firebase web configuration and Firestore access rules are enabled for this deployment.</p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             {/* Social OG Preview Card with Real Photo */}
             <div className="mb-6">
