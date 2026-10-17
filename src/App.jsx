@@ -1094,16 +1094,22 @@ const commonsPhotoCache = new Map();
 const plainCommonsText = (value = '') => String(value).replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&#160;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 
 const fetchCommonsPhoto = (query) => {
-  const cleanQuery = String(query || '').trim().slice(0, 140);
-  if (!cleanQuery) return Promise.resolve(null);
-  const cacheKey = cleanQuery.toLowerCase();
+  const rawQuery = String(query || '').trim().slice(0, 180);
+  if (!rawQuery) return Promise.resolve(null);
+  const cacheKey = rawQuery.toLowerCase();
   if (commonsPhotoCache.has(cacheKey)) return commonsPhotoCache.get(cacheKey);
+  // Long natural-language questions are too restrictive for Commons search.
+  // Keep distinctive topic words and remove filler so results match the actual subject.
+  const stopWords = new Set(['what','who','which','where','when','why','how','does','did','can','will','would','your','you','the','and','for','with','from','into','about','this','that','their','they','still','always','actual','favorite','favourite','during','college','question','option','name','vibe','status','best']);
+  const terms = rawQuery.toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/)
+    .filter((word) => word.length > 2 && !stopWords.has(word));
+  const cleanQuery = [...new Set(terms)].slice(0, 6).join(' ') || rawQuery.split(/\s+/).slice(0, 5).join(' ');
   const params = new URLSearchParams({
     action: 'query',
     generator: 'search',
     gsrsearch: cleanQuery,
     gsrnamespace: '6',
-    gsrlimit: '8',
+    gsrlimit: '12',
     prop: 'imageinfo',
     iiprop: 'url|extmetadata',
     iiurlwidth: '800',
