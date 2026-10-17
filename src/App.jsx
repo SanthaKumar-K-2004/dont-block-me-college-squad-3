@@ -57,6 +57,8 @@ class SoundEngine {
     this.master = null;
     this.muted = false;
     this.musicTimer = null;
+    this.musicSource = null;
+    this.musicGain = null;
     this.musicStep = 0;
     this.musicGeneration = 0;
   }
@@ -121,27 +123,73 @@ class SoundEngine {
   }
 
   async startMusic() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || this.muted) return false;
     this.stopMusic();
-    const generation = ++this.musicGeneration;
+    const generation = this.musicGeneration;
     const ready = await this.unlock();
-    if (!ready || generation !== this.musicGeneration || this.muted) return;
-    const melody = [261.63, 329.63, 392, 329.63, 293.66, 349.23, 440, 349.23];
-    const playBar = () => {
-      if (this.muted || generation !== this.musicGeneration) return;
-      const note = melody[this.musicStep % melody.length];
-      this.playTone(note, 'triangle', 0.30, 0, 0.035);
-      this.playTone(note * 2, 'sine', 0.16, 0.055, 0.012);
-      this.musicStep += 1;
-    };
-    playBar();
-    this.musicTimer = window.setInterval(playBar, 360);
+    if (!ready || generation !== this.musicGeneration || this.muted || !this.ctx || !this.master) return false;
+
+    // A looping AudioBuffer keeps the soundtrack scheduled by the audio engine,
+    // instead of relying on setInterval (which mobile browsers throttle in background tabs).
+    try {
+      const ctx = this.ctx;
+      const duration = 8;
+      const frameCount = Math.floor(ctx.sampleRate * duration);
+      const buffer = ctx.createBuffer(1, frameCount, ctx.sampleRate);
+      const samples = buffer.getChannelData(0);
+      const beat = 0.5;
+      const melody = [523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 880, 698.46,
+        523.25, 659.25, 783.99, 1046.5, 698.46, 587.33, 523.25, 392];
+      const chords = [
+        [130.81, 164.81, 196.00],
+        [110.00, 130.81, 164.81],
+        [87.31, 110.00, 130.81],
+        [98.00, 123.47, 146.83]
+      ];
+      for (let i = 0; i < frameCount; i += 1) {
+        const time = i / ctx.sampleRate;
+        const beatIndex = Math.floor(time / beat);
+        const withinBeat = (time % beat) / beat;
+        const noteIndex = beatIndex % melody.length;
+        const noteAge = (time % beat);
+        const envelope = Math.min(1, noteAge / 0.025) * Math.max(0, 1 - withinBeat * 0.85);
+        const chord = chords[Math.floor(beatIndex / 4) % chords.length];
+        const bass = Math.sin(2 * Math.PI * chord[0] * time) * 0.10;
+        const pad = chord.reduce((sum, hz) => sum + Math.sin(2 * Math.PI * hz * time) * 0.035, 0);
+        const lead = Math.sin(2 * Math.PI * melody[noteIndex] * time) * envelope * 0.15;
+        const sparkle = Math.sin(2 * Math.PI * melody[noteIndex] * 2 * time) * envelope * 0.025;
+        samples[i] = bass + pad + lead + sparkle;
+      }
+      const source = ctx.createBufferSource();
+      const gain = ctx.createGain();
+      source.buffer = buffer;
+      source.loop = true;
+      gain.gain.value = 0.38;
+      source.connect(gain);
+      gain.connect(this.master);
+      source.start();
+      this.musicSource = source;
+      this.musicGain = gain;
+      return true;
+    } catch (error) {
+      console.warn('Background music could not start:', error);
+      return false;
+    }
   }
 
   stopMusic() {
     this.musicGeneration += 1;
     if (this.musicTimer && typeof window !== 'undefined') window.clearInterval(this.musicTimer);
     this.musicTimer = null;
+    if (this.musicSource) {
+      try { this.musicSource.stop(); } catch (error) {}
+      try { this.musicSource.disconnect(); } catch (error) {}
+      this.musicSource = null;
+    }
+    if (this.musicGain) {
+      try { this.musicGain.disconnect(); } catch (error) {}
+      this.musicGain = null;
+    }
   }
 
   setMuted(value) {
@@ -1046,16 +1094,22 @@ const commonsPhotoCache = new Map();
 const plainCommonsText = (value = '') => String(value).replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&#160;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 
 const fetchCommonsPhoto = (query) => {
-  const cleanQuery = String(query || '').trim().slice(0, 140);
-  if (!cleanQuery) return Promise.resolve(null);
-  const cacheKey = cleanQuery.toLowerCase();
+  const rawQuery = String(query || '').trim().slice(0, 180);
+  if (!rawQuery) return Promise.resolve(null);
+  const cacheKey = rawQuery.toLowerCase();
   if (commonsPhotoCache.has(cacheKey)) return commonsPhotoCache.get(cacheKey);
+  // Long natural-language questions are too restrictive for Commons search.
+  // Keep distinctive topic words and remove filler so results match the actual subject.
+  const stopWords = new Set(['what','who','which','where','when','why','how','does','did','can','will','would','your','you','the','and','for','with','from','into','about','this','that','their','they','still','always','actual','favorite','favourite','during','college','question','option','name','vibe','status','best']);
+  const terms = rawQuery.toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/)
+    .filter((word) => word.length > 2 && !stopWords.has(word));
+  const cleanQuery = [...new Set(terms)].slice(0, 6).join(' ') || rawQuery.split(/\s+/).slice(0, 5).join(' ');
   const params = new URLSearchParams({
     action: 'query',
     generator: 'search',
     gsrsearch: cleanQuery,
     gsrnamespace: '6',
-    gsrlimit: '8',
+    gsrlimit: '12',
     prop: 'imageinfo',
     iiprop: 'url|extmetadata',
     iiurlwidth: '800',
@@ -1658,6 +1712,19 @@ export default function App() {
   const receiptCanvasRef = useRef(null);
 
   useEffect(() => () => sfx.stopMusic(), []);
+
+  // Some mobile browsers suspend Web Audio when a tab returns from the background.
+  // Resume only after the user has explicitly enabled music.
+  useEffect(() => {
+    if (!musicOn || muted || typeof document === 'undefined') return undefined;
+    const resumeWhenVisible = () => {
+      if (document.visibilityState === 'visible' && sfx.ctx?.state !== 'running') {
+        sfx.startMusic();
+      }
+    };
+    document.addEventListener('visibilitychange', resumeWhenVisible);
+    return () => document.removeEventListener('visibilitychange', resumeWhenVisible);
+  }, [musicOn, muted]);
 
   // --------------------------------------------------------------------------
   // Scoreboard & Admin Moderation State
@@ -2682,12 +2749,18 @@ export default function App() {
               type="button"
               aria-label={musicOn ? 'Turn background music off' : 'Turn background music on'}
               aria-pressed={musicOn}
-              onClick={() => {
-                sfx.click();
+              onClick={async () => {
                 const next = !musicOn;
-                setMusicOn(next);
-                if (next) sfx.startMusic();
-                else sfx.stopMusic();
+                if (next) {
+                  const started = await sfx.startMusic();
+                  setMusicOn(started);
+                  if (started) sfx.click();
+                  else showToast('Tap again to allow audio, or check your device media volume.', 'info');
+                } else {
+                  sfx.stopMusic();
+                  setMusicOn(false);
+                  sfx.click();
+                }
               }}
               className={`p-2 rounded-xl border-[2.5px] border-[#111] shadow-[3px_3px_0px_#111] ${musicOn ? 'bg-[#B8FF01]' : 'bg-white'}`}
               title={musicOn ? 'Background music on' : 'Background music off'}
