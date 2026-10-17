@@ -1,5 +1,5 @@
 import './app.css';
-import { mergeAttempts, isValidAttempt } from './attempts.js';
+import { mergeAttempts, mergeQuizSnapshots, isValidAttempt } from './attempts.js';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Sparkles, Volume2, VolumeX, Share2, Copy, RefreshCw, PlusCircle,
@@ -1888,7 +1888,7 @@ export default function App() {
         });
         if (Object.keys(fetched).length > 0) {
           Object.keys(fetched).forEach((quizId) => cloudQuizIdsRef.current.add(quizId));
-          setQuizzesMap((prev) => ({ ...prev, ...fetched }));
+          setQuizzesMap((prev) => mergeQuizSnapshots(prev, fetched));
         }
         setCloudSnapshotReady(true);
         setCloudSyncStatus('live');
