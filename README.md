@@ -26,3 +26,7 @@ Share links use the current deployed origin and query parameters (`/?id=...`). T
 
 ## Verification limitation
 A real production Firebase integration and authenticated multi-user flow cannot be verified without the project's Firebase config and Firestore rules.
+
+
+## Live question and answer photography
+Question banners and answer cards now attempt a relevant, openly licensed image search through the Wikimedia Commons API. The photo source link and available author/license metadata are shown on the card. If online search is unavailable or a result fails to load, the existing Unsplash image or themed card fallback remains in place. The app does not require an image API key.
