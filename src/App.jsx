@@ -2764,7 +2764,7 @@ export default function App() {
               }`}
             >
               <Share2 className="w-4 h-4" />
-              {lang === 'en' ? '2. Viral Link & OG Card' : '2. வாட்ஸ்அப் லிங்க்'}
+              {lang === 'en' ? '2. Share Quiz' : '2. வாட்ஸ்அப் லிங்க்'}
             </button>
 
             <button
@@ -2795,7 +2795,7 @@ export default function App() {
               }`}
             >
               <BarChart3 className="w-4 h-4" />
-              {lang === 'en' ? '4. Motion Graphs & Board' : '4. கிராப் & ஸ்கோர்போர்டு'}
+              {lang === 'en' ? '4. Scoreboard & Stats' : '4. கிராப் & ஸ்கோர்போர்டு'}
               <span className="px-1.5 py-0.2 bg-[#111] text-white rounded-full text-[11px]">
                 {(activeQuiz.attempts || []).length}
               </span>
@@ -3256,7 +3256,7 @@ export default function App() {
             {/* Social OG Preview Card with Real Photo */}
             <div className="mb-6">
               <label className="block font-black text-xs uppercase text-neutral-600 mb-2">
-                📱 WhatsApp Group & Instagram Story Link Preview:
+                📱 Quiz link preview: 
               </label>
               <div className="max-w-xl rounded-2xl bg-[#111] text-white border-[3px] border-[#111] p-4 shadow-[5px_5px_0px_#FF3366] flex items-center gap-4">
                 <div className="relative w-20 h-20 rounded-2xl border-2 border-[#B8FF01] shrink-0 overflow-hidden bg-gradient-to-br from-[#FF3366] to-[#FFB800] flex items-center justify-center" aria-label={`${activeQuiz.creatorName} avatar`}>
@@ -3276,7 +3276,7 @@ export default function App() {
                     ⚠️ {activeQuiz.creatorName} is auditing the College Gang!
                   </h3>
                   <p className="text-xs text-neutral-300 mt-1">
-                    Guess my Favorite Actor, Cartoon, Biryani & Bench Spot! Score{' '}
+                    Guess my favorite hero, cartoon, food and bench spot. Score{' '}
                     {activeQuiz.passScore}/10 or get BLOCKED 🚫
                   </p>
                   <div className="mt-2 text-xs font-mono text-[#00E5FF] truncate">{shareUrl}</div>
@@ -3293,12 +3293,12 @@ export default function App() {
                 }}
                 className="py-3.5 px-4 rounded-2xl bg-[#B8FF01] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] font-black text-sm flex items-center justify-center gap-2"
               >
-                <Copy className="w-4 h-4" /> Copy Viral Link
+                <Copy className="w-4 h-4" /> Copy Quiz Link
               </button>
 
               <a
                 href={`https://wa.me/?text=${encodeURIComponent(
-                  `🔥 *${activeQuiz.creatorName}'s College Squad Block Test!*\nGuess my favorite Hero, Cartoon, Food & Bench Spot! Score *${activeQuiz.passScore}/${activeQuiz.questions.length}* or get BLOCKED 🚫👇\n${shareUrl}`
+                  `🔥 *${activeQuiz.creatorName}'s College Squad Block Test!*\nGuess my favorite hero, cartoon, food and bench spot. Score *${activeQuiz.passScore}/${activeQuiz.questions.length}* or get BLOCKED 🚫👇\n${shareUrl}`
                 )}`}
                 target="_blank"
                 rel="noreferrer"
