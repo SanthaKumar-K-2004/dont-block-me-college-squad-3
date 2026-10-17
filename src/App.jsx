@@ -897,22 +897,22 @@ const RADAR_AXES = [
 ];
 
 // ============================================================================
-// 5. PRE-LOADED DEMO QUIZ ("Y0TJMqL") WITH COLLEGE SQUAD DATA
+// 5. CLEAN STARTER QUIZ (NO FAKE USERS OR SEEDED SCORES)
 // ============================================================================
 const INITIAL_DEMO_QUIZ = {
-  id: 'Y0TJMqL',
-  creatorName: 'Karthik',
+  id: 'START01',
+  creatorName: 'Your Squad',
   pronoun: 'm',
   avatar: 'av1',
   customAvatarUrl: '',
   themeId: 'block',
   passScore: 7,
-  pin: '4829',
-  createdAt: Date.now() - 3600000 * 3,
-  questions: QUESTION_POOL.slice(0, 10).map((q, idx) => ({
+  pin: '',
+  createdAt: Date.now(),
+  questions: QUESTION_POOL.slice(0, 10).map((q) => ({
     ...q,
-    correctOptionId: ['a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'b', 'a'][idx],
-    isDealbreaker: idx === 0 || idx === 2
+    correctOptionId: null,
+    isDealbreaker: false
   })),
   attempts: []
 };
@@ -1473,7 +1473,7 @@ export default function App() {
   // --------------------------------------------------------------------------
   const [boardFilter, setBoardFilter] = useState('all');
   const [inspectedAttempt, setInspectedAttempt] = useState(null);
-  const [unlockedQuizzes, setUnlockedQuizzes] = useState({ [INITIAL_DEMO_QUIZ.id]: true });
+  const [unlockedQuizzes, setUnlockedQuizzes] = useState({});
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [codeSearchInput, setCodeSearchInput] = useState('');
@@ -1860,6 +1860,12 @@ export default function App() {
   // ============================================================================
   const handleStartFriendPlay = (e) => {
     e.preventDefault();
+    if (!activeQuiz.questions?.length || activeQuiz.questions.some((q) => !q.correctOptionId || !q.options?.some((o) => o.id === q.correctOptionId))) {
+      showToast('This quiz is not published yet. Create your quiz and select the correct answer for every question first.', 'error');
+      setMode('create');
+      setCreatorStep(2);
+      return;
+    }
     const cleanName = friendName.trim();
     if (!cleanName || cleanName.length < 2) {
       sfx.wrong();
@@ -2471,7 +2477,7 @@ export default function App() {
                         onChange={(e) => setCName(e.target.value)}
                         placeholder={
                           lang === 'en'
-                            ? 'e.g., Karthik,urya, Priya, Harish...'
+                            ? 'e.g., Santhosh, Surya, Priya, Harish...'
                             : 'உதா: கார்த்திக், சூர்யா, திவ்யா...'
                         }
                         maxLength={22}
@@ -3825,7 +3831,7 @@ export default function App() {
                 maxLength={4}
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value)}
-                placeholder="4829"
+                placeholder="Enter creator PIN"
                 className="w-full text-center font-mono font-black text-2xl py-2.5 rounded-xl bg-[#FFFDF5] border-[3px] border-[#111]"
               />
               <button
@@ -3878,7 +3884,7 @@ export default function App() {
                 type="text"
                 value={codeSearchInput}
                 onChange={(e) => setCodeSearchInput(e.target.value)}
-                placeholder="Y0TJMqL"
+                placeholder="Enter quiz code"
                 className="w-full text-center font-mono font-black text-xl py-2.5 rounded-xl bg-[#FFFDF5] border-[3px] border-[#111]"
               />
               <button
