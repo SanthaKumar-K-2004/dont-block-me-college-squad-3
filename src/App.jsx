@@ -1640,6 +1640,22 @@ export default function App() {
     setMode('share');
   }, []);
 
+  // Do not silently show the demo quiz for a shared quiz ID that is unavailable locally.
+  useEffect(() => {
+    if (!localStoreReady || db || !activeQuizId || activeQuizId === INITIAL_DEMO_QUIZ.id) return;
+    if (!quizzesMap[activeQuizId]) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('id')) {
+        setActiveQuizId(INITIAL_DEMO_QUIZ.id);
+        setMode('create');
+        showToast(
+          'This quiz is not saved on this device. Cross-device links require Firebase cloud sync.',
+          'error'
+        );
+      }
+    }
+  }, [localStoreReady, activeQuizId, quizzesMap, db]);
+
   // FIREBASE AUTH & REAL-TIME SYNC
   // ============================================================================
   useEffect(() => {
