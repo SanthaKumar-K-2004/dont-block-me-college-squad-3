@@ -2649,7 +2649,7 @@ export default function App() {
           </div>
 
           {/* Right Quick Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 header-quick-actions">
             <button
               onClick={() => {
                 sfx.click();
@@ -2738,7 +2738,7 @@ export default function App() {
       )}
       {/* Flow Switcher Bar */}
         <div className="max-w-6xl mx-auto mt-3 pt-2.5 border-t-2 border-dashed border-neutral-300 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 header-flow-actions">
             <button
               onClick={() => {
                 sfx.click();
