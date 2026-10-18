@@ -9,6 +9,8 @@ React + Vite + Tailwind CSS v4 + Firebase frontend scaffold assembled from the s
 4. Run `npm run build` for a production build.
 
 ## Firebase and sync
+See [the full Firebase setup and verification guide](docs/FIREBASE_SETUP.md) for project creation, Anonymous Authentication, Firestore rules deployment, Vercel variables, and cross-device testing.
+
 The app accepts either the host-injected `__firebase_config` or Vite environment variables:
 - `VITE_FIREBASE_CONFIG`: the Firebase web app config as a single-line JSON object.
 - `VITE_FIREBASE_APP_ID`: optional app namespace.
