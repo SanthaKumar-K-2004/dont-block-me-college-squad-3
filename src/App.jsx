@@ -3498,7 +3498,6 @@ export default function App() {
                 disabled={!canShareQuizOnline}
                 onClick={async () => {
                   if (!canShareQuizOnline) return;
-                  sfx.correct(2);
                   const copied = await copyTextBulletproof(shareUrl);
                   if (copied) {
                     sfx.correct(2);
