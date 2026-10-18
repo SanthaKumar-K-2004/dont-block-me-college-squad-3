@@ -261,7 +261,7 @@ const QUESTION_POOL = [
         emoji: '😎',
         en: 'Ajith Kumar — Mankatha swagger, stylish action and bike-racing vibe',
         desi: 'அஜித் குமார் — மங்காத்தா ஸ்வாக், ஸ்டைலிஷ் ஆக்ஷன், பைக் ரேசிங் வைப்',
-        img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80',
+        img: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-slate-800 to-red-700'
       },
       {
@@ -270,7 +270,7 @@ const QUESTION_POOL = [
         emoji: '🦁',
         en: 'Suriya — Singam energy, versatile acting and emotional roles',
         desi: 'சூர்யா — சிங்கம் எனர்ஜி, வித்தியாசமான நடிப்பு, எமோஷனல் ரோல்ஸ்',
-        img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80',
+        img: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-purple-700 to-indigo-900'
       },
       {
@@ -279,7 +279,7 @@ const QUESTION_POOL = [
         emoji: '🎭',
         en: 'Sivakarthikeyan — relatable comedy, family entertainers and feel-good roles',
         desi: 'சிவகார்த்திகேயன் — காமெடி, ஃபேமிலி எண்டர்டெய்னர், ரிலேட்டபிள் வைப்',
-        img: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80',
+        img: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-emerald-500 to-teal-700'
       }
     ]
@@ -307,7 +307,7 @@ const QUESTION_POOL = [
         emoji: '🐉',
         en: 'Ben 10 — alien transformations, Omnitrix gadgets and action adventures',
         desi: 'பென் 10 — ஏலியன் டிரான்ஸ்ஃபர்மேஷன், ஓம்னிட்ரிக்ஸ் கேட்ஜெட்ஸ், ஆக்ஷன்',
-        img: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=600&q=80',
+        img: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-green-500 to-emerald-800'
       },
       {
@@ -316,7 +316,7 @@ const QUESTION_POOL = [
         emoji: '🔔',
         en: 'Doraemon — futuristic gadgets, Anywhere Door and time-travel fun',
         desi: 'டோரேமான் — எதிர்கால கேட்ஜெட்ஸ், எங்கேயும் கதவு, டைம் டிராவல்',
-        img: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=600&q=80',
+        img: 'https://images.unsplash.com/photo-1614583225154-5fcdda07019e?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-sky-400 to-blue-700'
       },
       {
@@ -325,7 +325,7 @@ const QUESTION_POOL = [
         emoji: '🍥',
         en: 'Naruto — ninja battles, determination and unforgettable squad bonds',
         desi: 'நருடோ — நிஞ்ஜா சண்டை, விடாமுயற்சி, மறக்க முடியாத நண்பர்கள்',
-        img: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=600&q=80',
+        img: 'https://images.unsplash.com/photo-1601850494422-3cf14624b0b3?auto=format&fit=crop&w=600&q=80',
         gradient: 'from-orange-500 to-rose-700'
       }
     ]
