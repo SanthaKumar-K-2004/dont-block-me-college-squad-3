@@ -1154,8 +1154,12 @@ const fetchCommonsPhoto = (query) => {
   if (commonsPhotoCache.has(cacheKey)) return commonsPhotoCache.get(cacheKey);
 
   const storedPhoto = readCommonsStorage(cacheKey);
-  if (storedPhoto) {
-    const cachedRequest = preloadCommonsImage(storedPhoto.url).then((loaded) => loaded ? storedPhoto : null);
+  if (storedPhoto && (!claimedCommonsPhotoUrls.has(storedPhoto.url) || claimedCommonsPhotoUrls.get(storedPhoto.url) === cacheKey)) {
+    claimedCommonsPhotoUrls.set(storedPhoto.url, cacheKey);
+    const cachedRequest = preloadCommonsImage(storedPhoto.url).then((loaded) => {
+      if (!loaded && claimedCommonsPhotoUrls.get(storedPhoto.url) === cacheKey) claimedCommonsPhotoUrls.delete(storedPhoto.url);
+      return loaded ? storedPhoto : null;
+    });
     commonsPhotoCache.set(cacheKey, cachedRequest);
     return cachedRequest;
   }
@@ -1201,7 +1205,7 @@ const fetchCommonsPhoto = (query) => {
         const description = plainCommonsText(metadata.ImageDescription?.value || '').toLowerCase();
         const searchable = title + ' ' + description;
         const matches = queryTerms.filter((word) => searchable.includes(word));
-        const specificity = matches.reduce((score, word) => score + (word.length >= 6 ? 2 : 1), 0);
+        const specificity = matches.reduce((score, word) => score + (word.length >= 5 ? 2 : 1), 0);
         return { page, info, title, specificity, matchCount: matches.length };
       }).sort((a, b) => b.specificity - a.specificity || b.matchCount - a.matchCount);
       const candidate = rankedPages.find(({ info, title, specificity }) => {
