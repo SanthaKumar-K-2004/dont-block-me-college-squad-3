@@ -1093,7 +1093,7 @@ function computeRadarMetrics(questions, answersMap) {
 const commonsPhotoCache = new Map();
 // Avoid assigning the same Commons file to multiple answer cards in one session.
 const claimedCommonsPhotoUrls = new Map();
-const COMMONS_STORAGE_KEY = 'college-squad-commons-photos-v2';
+const COMMONS_STORAGE_KEY = 'college-squad-commons-photos-v3';
 const COMMONS_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 const COMMONS_FETCH_TIMEOUT = 4500;
 const COMMONS_IMAGE_TIMEOUT = 3200;
@@ -3449,7 +3449,13 @@ export default function App() {
                         {isRetryingCloudPublish ? 'Retrying sync…' : 'Retry online sync'}
                       </button>
                     ) : (
-                      <p className="mt-3 text-xs font-bold text-amber-900">Firebase setup or sign-in is not ready yet. Check the connection, Anonymous Authentication, and Firestore rules.</p>
+                      <div className="mt-3 rounded-xl border border-amber-300 bg-white/80 p-3 text-left">
+                        <p className="text-xs font-bold text-amber-900">To enable real cross-device links, connect a Firebase Web App, enable Anonymous sign-in, create Firestore, and deploy the repository's firestore.rules. A local-only quiz cannot load on a friend's phone yet.</p>
+                        <div className="mt-2 flex flex-wrap gap-3 text-xs font-black">
+                          <a className="underline text-blue-800" href="https://console.firebase.google.com/" target="_blank" rel="noreferrer">Open Firebase Console ↗</a>
+                          <a className="underline text-blue-800" href="https://vercel.com/dashboard" target="_blank" rel="noreferrer">Open Vercel Dashboard ↗</a>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -3480,7 +3486,7 @@ export default function App() {
                   </h3>
                   <p className="text-xs text-neutral-300 mt-1">
                     Guess my favorite hero, cartoon, food and bench spot. Score{' '}
-                    {activeQuiz.passScore}/10 or get BLOCKED 🚫
+                    {activeQuiz.passScore}/{activeQuiz.questions.length} or get BLOCKED 🚫
                   </p>
                   <div className="mt-2 text-xs font-mono text-[#00E5FF] truncate">{shareUrl}</div>
                 </div>
@@ -3492,9 +3498,15 @@ export default function App() {
                 disabled={!canShareQuizOnline}
                 onClick={async () => {
                   if (!canShareQuizOnline) return;
-                  sfx.correct(2);
-                  await copyTextBulletproof(shareUrl);
-                  showToast('Quiz link copied. Paste it into your group chat 📋', 'success');
+                  const copied = await copyTextBulletproof(shareUrl);
+                  if (copied) {
+                    sfx.correct(2);
+                    showToast(canShareQuizOnline
+                      ? 'Quiz link copied. Paste it into your group chat 📋'
+                      : 'Link copied, but it will work on other phones only after Firebase sync is configured.', copied && canShareQuizOnline ? 'success' : 'error');
+                  } else {
+                    showToast('Could not copy automatically. Select and copy the quiz URL shown above.', 'error');
+                  }
                 }}
                 className="py-3.5 px-4 rounded-2xl bg-[#B8FF01] border-[3px] border-[#111] shadow-[4px_4px_0px_#111] font-black text-sm flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
