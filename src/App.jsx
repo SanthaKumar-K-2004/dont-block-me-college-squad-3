@@ -1166,9 +1166,9 @@ const fetchCommonsPhoto = (query) => {
 
   // Keep option-specific words first; vague question words often produce repeated photos.
   const stopWords = new Set(['what','who','which','where','when','why','how','does','did','can','will','would','your','you','the','and','for','with','from','into','about','this','that','their','they','still','always','actual','favorite','favourite','during','college','question','option','name','vibe','status','best','energy','style','relatable','unforgettable','fixed','ultimate','real','all','day']);
-  const terms = rawQuery.toLowerCase().replace(/[^a-z0-9\\s-]/g, ' ').split(/\\s+/)
+  const terms = rawQuery.toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/)
     .filter((word) => word.length > 2 && !stopWords.has(word));
-  const cleanQuery = [...new Set(terms)].slice(0, 5).join(' ') || rawQuery.split(/\\s+/).slice(0, 4).join(' ');
+  const cleanQuery = [...new Set(terms)].slice(0, 5).join(' ') || rawQuery.split(/\s+/).slice(0, 4).join(' ');
   const queryTerms = [...new Set(terms)].filter((word) => word.length > 2);
   const params = new URLSearchParams({
     action: 'query',
@@ -1200,7 +1200,7 @@ const fetchCommonsPhoto = (query) => {
       // by another option so neighbouring cards cannot all show the same search result.
       const rankedPages = pages.map((page) => {
         const info = page.imageinfo?.[0];
-        const title = String(page.title || '').replace(/^File:/i, '').toLowerCase().replace(/\\.[a-z0-9]{2,5}$/i, '').replace(/[^a-z0-9]+/g, ' ');
+        const title = String(page.title || '').replace(/^File:/i, '').toLowerCase().replace(/\.[a-z0-9]{2,5}$/i, '').replace(/[^a-z0-9]+/g, ' ');
         const metadata = info?.extmetadata || {};
         const description = plainCommonsText(metadata.ImageDescription?.value || '').toLowerCase();
         const searchable = title + ' ' + description;
@@ -1215,11 +1215,11 @@ const fetchCommonsPhoto = (query) => {
         const url = info?.thumburl || info?.url;
         return Boolean(url) &&
           !claimedCommonsPhotoUrls.has(url) &&
-          /^image\\/(jpeg|png|webp|gif)$/i.test(mime) &&
+          /^image\/(jpeg|png|webp|gif)$/i.test(mime) &&
           Number(info.width || 0) >= 320 &&
           hasLicense &&
           specificity >= 2 &&
-          !/\\b(logo|icon|favicon|watermark|poster template|collage)\\b/i.test(title);
+          !/\b(logo|icon|favicon|watermark|poster template|collage)\b/i.test(title);
       });
       if (!candidate) return null;
       const usable = candidate.page;
