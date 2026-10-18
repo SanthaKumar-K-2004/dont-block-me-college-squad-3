@@ -1091,7 +1091,9 @@ function computeRadarMetrics(questions, answersMap) {
 // Free, openly licensed photos are discovered from Wikimedia Commons at runtime.
 // Search results include the file page and license metadata so credits remain visible.
 const commonsPhotoCache = new Map();
-const COMMONS_STORAGE_KEY = 'college-squad-commons-photos-v1';
+// Avoid assigning the same Commons file to multiple answer cards in one session.
+const claimedCommonsPhotoUrls = new Map();
+const COMMONS_STORAGE_KEY = 'college-squad-commons-photos-v2';
 const COMMONS_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 const COMMONS_FETCH_TIMEOUT = 4500;
 const COMMONS_IMAGE_TIMEOUT = 3200;
@@ -1158,11 +1160,12 @@ const fetchCommonsPhoto = (query) => {
     return cachedRequest;
   }
 
-  // Keep only distinctive terms. Broad, long question text makes Commons search slow and irrelevant.
-  const stopWords = new Set(['what','who','which','where','when','why','how','does','did','can','will','would','your','you','the','and','for','with','from','into','about','this','that','their','they','still','always','actual','favorite','favourite','during','college','question','option','name','vibe','status','best']);
-  const terms = rawQuery.toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/)
+  // Keep option-specific words first; vague question words often produce repeated photos.
+  const stopWords = new Set(['what','who','which','where','when','why','how','does','did','can','will','would','your','you','the','and','for','with','from','into','about','this','that','their','they','still','always','actual','favorite','favourite','during','college','question','option','name','vibe','status','best','energy','style','relatable','unforgettable','fixed','ultimate','real','all','day']);
+  const terms = rawQuery.toLowerCase().replace(/[^a-z0-9\\s-]/g, ' ').split(/\\s+/)
     .filter((word) => word.length > 2 && !stopWords.has(word));
-  const cleanQuery = [...new Set(terms)].slice(0, 6).join(' ') || rawQuery.split(/\s+/).slice(0, 5).join(' ');
+  const cleanQuery = [...new Set(terms)].slice(0, 5).join(' ') || rawQuery.split(/\\s+/).slice(0, 4).join(' ');
+  const queryTerms = [...new Set(terms)].filter((word) => word.length > 2);
   const params = new URLSearchParams({
     action: 'query',
     generator: 'search',
@@ -1188,24 +1191,40 @@ const fetchCommonsPhoto = (query) => {
       });
       if (!response.ok) throw new Error('Commons image search unavailable');
       const data = await response.json();
-      const pages = Object.values(data?.query?.pages || {}).sort((a, b) => (a.index ?? 999) - (b.index ?? 999));
-      const usable = pages.find((page) => {
+      const pages = Object.values(data?.query?.pages || {});
+      // Rank candidates against the option's own topic, and exclude photos already used
+      // by another option so neighbouring cards cannot all show the same search result.
+      const rankedPages = pages.map((page) => {
         const info = page.imageinfo?.[0];
+        const title = String(page.title || '').replace(/^File:/i, '').toLowerCase().replace(/\\.[a-z0-9]{2,5}$/i, '').replace(/[^a-z0-9]+/g, ' ');
+        const metadata = info?.extmetadata || {};
+        const description = plainCommonsText(metadata.ImageDescription?.value || '').toLowerCase();
+        const searchable = title + ' ' + description;
+        const matches = queryTerms.filter((word) => searchable.includes(word));
+        const specificity = matches.reduce((score, word) => score + (word.length >= 6 ? 2 : 1), 0);
+        return { page, info, title, specificity, matchCount: matches.length };
+      }).sort((a, b) => b.specificity - a.specificity || b.matchCount - a.matchCount);
+      const candidate = rankedPages.find(({ info, title, specificity }) => {
         const mime = String(info?.mime || '');
-        const title = String(page.title || '');
         const metadata = info?.extmetadata || {};
         const hasLicense = Boolean(metadata.LicenseShortName?.value || metadata.UsageTerms?.value);
-        return Boolean(info?.thumburl) &&
-          /^image\/(jpeg|png|webp|gif)$/i.test(mime) &&
+        const url = info?.thumburl || info?.url;
+        return Boolean(url) &&
+          !claimedCommonsPhotoUrls.has(url) &&
+          /^image\\/(jpeg|png|webp|gif)$/i.test(mime) &&
           Number(info.width || 0) >= 320 &&
           hasLicense &&
-          !/\b(logo|icon|favicon|watermark)\b/i.test(title);
+          specificity >= 2 &&
+          !/\\b(logo|icon|favicon|watermark|poster template|collage)\\b/i.test(title);
       });
-      if (!usable) return null;
-      const info = usable.imageinfo[0];
+      if (!candidate) return null;
+      const usable = candidate.page;
+      const info = candidate.info;
+      const selectedUrl = info.thumburl || info.url;
+      claimedCommonsPhotoUrls.set(selectedUrl, cacheKey);
       const meta = info.extmetadata || {};
       const photo = {
-        url: info.thumburl || info.url,
+        url: selectedUrl,
         pageUrl: 'https://commons.wikimedia.org/wiki/' + encodeURIComponent(usable.title || '').replace(/%3A/gi, ':').replace(/%20/g, '_'),
         title: String(usable.title || '').replace(/^File:/, ''),
         artist: plainCommonsText(meta.Artist?.value || ''),
@@ -1214,7 +1233,7 @@ const fetchCommonsPhoto = (query) => {
       };
       // Do not swap the visible fallback for a remote URL until that image is actually loadable.
       const loaded = await preloadCommonsImage(photo.url);
-      if (!loaded) return null;
+      if (!loaded) { if (claimedCommonsPhotoUrls.get(selectedUrl) === cacheKey) claimedCommonsPhotoUrls.delete(selectedUrl); return null; }
       writeCommonsStorage(cacheKey, photo);
       return photo;
     } catch (error) {
